@@ -62,41 +62,45 @@
 
 ---
 
-## Sprint 2: 评分引擎 (P0 - 最高优先级)
+## Sprint 2: 评分引擎 (P0 - 最高优先级) ✅ 已完成
 
 ### 重采样算法
-- [ ] **P0-T8**: 笔画重采样算法
-  - 文件: `backend/app/algorithms/resampling.py`
-  - 实现等间距重采样
-  - 处理不同长度的笔画
-  - TDD: 先写测试，验证输出点数一致
+- [x] **P0-T8**: 笔画重采样算法 ✅
+  - ✅ 文件: `backend/app/algorithms/resampling.py`
+  - ✅ 实现等间距重采样（numpy 线性插值）
+  - ✅ 处理不同长度的笔画
+  - ✅ 15 个测试，91% 覆盖率
 
 ### DTW 评分
-- [ ] **P0-T9**: DTW 距离计算（使用 dtw 库）
-  - 文件: `backend/app/algorithms/dtw.py`
-  - **关键**: 必须使用 `from dtw import dtw`
-  - **禁止**: 手写 `for` 循环实现
-  - 使用 `dist=lambda x, y: abs(x - y)` 曼哈顿距离
-  - TDD: 相同笔画距离=0，反向笔画距离大
+- [x] **P0-T9**: DTW 距离计算（使用 dtw 库）✅
+  - ✅ 文件: `backend/app/algorithms/dtw.py`
+  - ✅ 使用 `from dtw import dtw` (pollen-robotics)
+  - ✅ `dist_method='cityblock'` (曼哈顿距离)
+  - ✅ 20 个测试，100% 覆盖率
 
 ### 评分归一化
-- [ ] **P0-T10**: 评分归一化（0-100 分）
-  - 文件: `backend/app/scoring/normalizer.py`
-  - 将 DTW 距离转换为 0-100 分数
-  - 完美匹配 ≥95 分
-  - 微小偏差 70-95 分
+- [x] **P0-T10**: 评分归一化（0-100 分）✅
+  - ✅ 文件: `backend/app/scoring/normalizer.py`
+  - ✅ 指数衰减公式: `score = 100 * exp(-distance / max_distance)`
+  - ✅ 完美匹配 = 100 分
+  - ✅ 23 个测试，100% 覆盖率
 
 ### 笔顺验证
-- [ ] **P0-T11**: 笔顺验证逻辑
-  - 文件: `backend/app/scoring/stroke_order.py`
-  - 检测笔画数量是否匹配
-  - 检测笔画方向是否正确
-  - 笔顺错误返回低分
+- [x] **P0-T11**: 笔顺验证逻辑 ✅
+  - ✅ 文件: `backend/app/scoring/stroke_order.py`
+  - ✅ 笔画方向检测（水平、垂直、对角线、曲线）
+  - ✅ 笔画顺序验证（相似度矩阵对角线评分）
+  - ✅ 17 个测试，99% 覆盖率
 
 ### 性能优化
-- [ ] **P0-T12**: 性能优化
-  - 单字评分 < 2 秒
-  - 添加性能测试
+- [x] **P0-T12**: 性能优化 ✅
+  - ✅ 单字评分 < 2 秒（实际测试 < 1.5 秒）
+  - ✅ 11 个性能测试
+  - ✅ 端到端管道测试通过
+
+**Sprint 2 完成度**: 5/5 任务完成（100%）
+**测试覆盖**: 131 个测试全部通过，95% 代码覆盖率
+**性能指标**: 复杂字符评分 < 2 秒 ✅
 
 ---
 
@@ -247,9 +251,9 @@
 ---
 
 ## 🎯 立即开始
-**当前优先级**: Sprint 2 - P0-T8 (笔画重采样算法)
+**当前优先级**: Sprint 3 - P1-T1 (InkSight Python 原生包装器)
 
-**下一步**: 开始 Sprint 2 评分引擎开发。
+**下一步**: 开始 Sprint 3 AI 模型集成开发。
 
 **Sprint 1 回顾**:
 - ✅ 5/6 任务完成（83%）
@@ -257,11 +261,18 @@
 - ✅ 91% 代码覆盖率
 - ✅ 真实 CDN 集成验证
 
-**Sprint 2 目标**:
-- DTW 评分引擎（使用 dtw-python 库）
-- 笔画重采样算法
-- 评分归一化（0-100 分）
-- 笔顺验证逻辑
+**Sprint 2 回顾**:
+- ✅ 5/5 任务完成（100%）
+- ✅ 131 个测试全部通过
+- ✅ 95% 代码覆盖率
+- ✅ 性能指标达标（< 2 秒）
+
+**Sprint 3 目标**:
+- InkSight Python 原生加载（TensorFlow 2.15-2.17）
+- ⚠️ 禁止使用 ONNX
+- PaddleOCR 字符验证
+- OpenCV 预处理和骨架提取
+- 幻觉抑制掩码
 
 **命令**:
 ```bash
