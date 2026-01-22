@@ -1,0 +1,8 @@
+# This file should be configured to point to your local Flutter SDK
+# Example:
+# flutter.sdk=/Users/your-name/flutter
+# Or on Windows:
+# flutter.sdk=C:\\path\\to\\flutter
+
+sdk.dir=/Users/your-username/flutter
+flutter.sdk=/Users/your-username/flutter
