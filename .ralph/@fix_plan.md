@@ -158,36 +158,43 @@
 
 ---
 
-## Sprint 4: 前端基础 (P2 - 中等优先级)
+## Sprint 4: 前端基础 (P2 - 中等优先级) ✅ 已完成
 
 ### Flutter 项目初始化
-- [ ] **P2-T1**: Flutter 项目初始化
-  - 目录: `frontend/`
-  - 配置 `pubspec.yaml`
-  - 添加依赖: `dio`, `flutter_svg`, `camera`, `provider`
+- [x] **P2-T1**: Flutter 项目初始化 ✅
+  - ✅ 目录: `frontend/`
+  - ✅ 配置 `pubspec.yaml`
+  - ✅ 添加依赖: dio, flutter_svg, camera, provider
 
 ### API 客户端
-- [ ] **P2-T2**: HTTP 客户端层（Dio）
-  - 目录: `frontend/lib/api/`
-  - 封装后端 API 调用
-  - 错误处理
+- [x] **P2-T2**: HTTP 客户端层（Dio）✅
+  - ✅ 文件: `frontend/lib/api/characters_api.dart`
+  - ✅ 封装后端 API 调用
+  - ✅ 错误处理和超时管理
 
 ### SVG 渲染
-- [ ] **P2-T3**: SVG 渲染组件（flutter_svg）
-  - 文件: `frontend/lib/widgets/character_display.dart`
-  - 显示 Hanzi Writer 字符
-  - 虚线引导叠加
+- [x] **P2-T3**: SVG 渲染组件（flutter_svg）✅
+  - ✅ 文件: `frontend/lib/widgets/character_display.dart`
+  - ✅ 显示 Hanzi Writer 字符
+  - ✅ CustomPainter 笔画渲染
 
 ### 书写画布
-- [ ] **P2-T4**: 书写画布（CustomPaint）
-  - 文件: `frontend/lib/widgets/writing_canvas.dart`
-  - 捕获触摸输入
-  - 转换为笔画数据
+- [x] **P2-T4**: 书写画布（CustomPaint）✅
+  - ✅ 文件: `frontend/lib/widgets/writing_canvas.dart`
+  - ✅ 捕获触摸输入为笔画数据
+  - ✅ 米字格背景
+  - ✅ 实时笔画渲染
 
 ### 状态管理
-- [ ] **P2-T5**: 状态管理（Provider/Riverpod）
-  - 目录: `frontend/lib/providers/`
-  - 管理应用状态
+- [x] **P2-T5**: 状态管理（Provider）✅
+  - ✅ 文件: `frontend/lib/providers/character_provider.dart`
+  - ✅ 管理应用状态
+  - ✅ 笔画数据管理
+  - ✅ 评分结果管理
+
+**Sprint 4 完成度**: 5/5 任务完成（100%）
+**前端文件**: 9 个核心文件
+**依赖**: Dio, flutter_svg, provider, camera
 
 ---
 
@@ -261,34 +268,36 @@
 ---
 
 ## 🎯 立即开始
-**当前优先级**: Sprint 4 - P2-T1 (Flutter 项目初始化)
+**当前优先级**: Sprint 5 - P1-T7 (ML Kit Pose 集成)
 
-**下一步**: 开始前端 Flutter 项目开发。
+**下一步**: 继续前端实时监测功能开发。
 
 **Sprint 1 回顾**:
 - ✅ 5/6 任务完成（83%）
 - ✅ 44 个测试全部通过
 - ✅ 91% 代码覆盖率
-- ✅ 真实 CDN 集成验证
 
 **Sprint 2 回顾**:
 - ✅ 5/5 任务完成（100%）
 - ✅ 131 个测试全部通过
 - ✅ 95% 代码覆盖率
-- ✅ 性能指标达标（< 2 秒）
 
 **Sprint 3 回顾**:
 - ✅ 6/6 任务完成（100%）
 - ✅ 166 个测试全部通过
 - ✅ 78% 代码覆盖率
-- ✅ InkSight、PaddleOCR、OpenCV 全部集成
 
-**Sprint 4 目标**:
-- Flutter 项目初始化
-- API 客户端层（Dio）
-- SVG 渲染组件（flutter_svg）
-- 书写画布（CustomPaint）
-- 状态管理（Provider/Riverpod）
+**Sprint 4 回顾**:
+- ✅ 5/5 任务完成（100%）
+- ✅ Flutter 前端完整实现
+- ✅ 9 个核心文件
+
+**Sprint 5 目标**:
+- ML Kit Pose 集成（google_ml_kit_pose_detection）
+- 实时坐姿检测（脊柱角度、眼屏距离）
+- 握笔检测算法
+- AR 反馈叠加层
+- 性能优化（GPU、Isolate）
 
 **命令**:
 ```bash
@@ -297,10 +306,11 @@ cd /Users/Zhuanz/Documents/01_SmartPen/smartpen-project/backend
 source .venv/bin/activate
 pytest tests/ -v
 
-# 启动 API 服务器（测试）
+# 启动 API 服务器
 uvicorn app.main:app --reload
 
-# 初始化 Flutter 项目（下一步）
-cd ../
-flutter create frontend
+# 运行 Flutter 应用（需要先安装 Flutter SDK）
+cd ../frontend
+flutter pub get
+flutter run
 ```
