@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: smartpen-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smartpen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smartpen123}
+      POSTGRES_DB: ${POSTGRES_DB:-smartpen}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartpen"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: smartpen-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 后端 API
+  backend:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: smartpen-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-smartpen}:${POSTGRES_PASSWORD:-smartpen123}@postgres:5432/${POSTGRES_DB:-smartpen}
+      REDIS_URL: redis://redis:6379/0
+      HUGGINGFACE_TOKEN: ${HUGGINGFACE_TOKEN}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - ../backend/app:/app/app
+      - model_cache:/root/.cache
+      - log_data:/app/logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: smartpen-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  model_cache:
+  log_data:
+
+networks:
+  default:
+    name: smartpen-network
