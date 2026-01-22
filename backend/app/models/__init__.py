@@ -23,6 +23,13 @@ from app.models.inksight import (
     convert_to_hanzi_writer_format,
 )
 
+from app.models.paddle_ocr import (
+    PaddleOCRModel,
+    OCRResult,
+    verify_character_match,
+    preprocess_ocr_image,
+)
+
 from app.models.model_loader import (
     get_model_cache_dir,
     get_inksight_model_path,
@@ -46,6 +53,11 @@ __all__ = [
     "map_inksight_to_hanzi_1024",
     "map_hanzi_1024_to_inksight",
     "convert_to_hanzi_writer_format",
+    # PaddleOCR models
+    "PaddleOCRModel",
+    "OCRResult",
+    "verify_character_match",
+    "preprocess_ocr_image",
     # Model loader
     "get_model_cache_dir",
     "get_inksight_model_path",
