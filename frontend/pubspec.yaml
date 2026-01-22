@@ -23,9 +23,15 @@ dependencies:
   camera: ^0.10.5+5
   image_picker: ^1.0.5
 
+  # ML Kit Pose Detection
+  google_mlkit_pose_detection: ^0.0.6
+
   # 路径处理
   path_provider: ^2.1.1
   path: ^1.8.3
+
+  # 权限处理
+  permission_handler: ^11.1.0
 
   # JSON 序列化
   json_annotation: ^4.8.1
