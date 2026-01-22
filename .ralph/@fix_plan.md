@@ -1,27 +1,275 @@
-# Ralph Fix Plan
+# SmartPen 开发任务列表 (PRD v2.1)
 
-## High Priority
-- [ ] Set up basic project structure and build system
-- [ ] Define core data structures and types
-- [ ] Implement basic input/output handling
-- [ ] Create test framework and initial tests
+## ⚠️ 关键技术约束 (必须遵守)
+1. **InkSight**: Python 原生加载（TensorFlow 2.15-2.17），**禁止 ONNX**
+2. **Flutter 视觉**: `google_ml_kit_pose_detection`
+3. **DTW 算法**: 使用 `dtw` 库 (pollen-robotics)，禁止自己实现
+4. **数据加载**: Hanzi Writer CDN 动态加载
 
-## Medium Priority
-- [ ] Add error handling and validation
-- [ ] Implement core business logic
-- [ ] Add configuration management
-- [ ] Create user documentation
+---
 
-## Low Priority
-- [ ] Performance optimization
-- [ ] Extended feature set
-- [ ] Integration with external services
-- [ ] Advanced error recovery
+## Sprint 1: 基础设施 (P0 - 最高优先级) ✅ 已完成
 
-## Completed
-- [x] Project initialization
+### 后端项目结构
+- [x] **P0-T1**: Python 项目结构（FastAPI, pytest, pyproject.toml）
+  - ✅ 创建 `backend/` 目录结构
+  - ✅ 配置 `pyproject.toml` 包管理（TensorFlow 2.15-2.17 约束）
+  - ✅ 配置 `pytest` 测试框架
+  - ✅ 创建 `backend/app/__init__.py`
+  - ✅ 安装所有依赖（FastAPI, TensorFlow, PaddleOCR, dtw-python）
 
-## Notes
-- Focus on MVP functionality first
-- Ensure each feature is properly tested
-- Update this file after each major milestone
+### 数据模型
+- [x] **P0-T2**: Character Pydantic 模型 ✅
+  - ✅ 文件: `backend/app/models/character.py`
+  - ✅ 定义 `CharacterData`, `StrokeMedian`, `MedianPoint`, `StrokePath` 模型
+  - ✅ 验证 Hanzi Writer JSON 结构
+  - ✅ 坐标转换方法（`from_hanzi_1024()`, `to_hanzi_1024()`）
+  - ✅ 100% 测试覆盖率
+
+### 数据加载器
+- [x] **P0-T3**: Hanzi Writer CDN 加载器 ✅
+  - ✅ 文件: `backend/app/parsers/hanzi_writer.py`
+  - ✅ 实现 `HanziWriterLoader` 类
+  - ✅ 从 CDN `https://cdn.jsdelivr.net/npm/hanzi-writer-data@latest/{char}.json` 加载
+  - ✅ 异步加载 (httpx)
+  - ✅ 验证数据结构（必须有 `medians` 字段）
+  - ✅ 83% 测试覆盖率
+  - ✅ 真实 CDN 集成测试通过
+
+### 坐标转换
+- [x] **P0-T4**: 坐标转换管道（1024 ↔ 0-1）✅
+  - ✅ 已在 `CharacterData` 模型中实现
+  - ✅ `MedianPoint.from_hanzi_1024()`: 1024 → 0-1 归一化
+  - ✅ `MedianPoint.to_hanzi_1024()`: 0-1 → 1024 网格
+  - ✅ 来回转换测试通过
+
+### API 端点
+- [x] **P0-T5**: FastAPI 字符检索端点 ✅
+  - ✅ 文件: `backend/app/api/characters.py`
+  - ✅ 实现 `GET /api/characters/{char}` 端点（使用 HanziWriterLoader）
+  - ✅ 实现 `GET /api/characters/{char}/status` 端点
+  - ✅ 返回 JSON 格式字符数据（归一化坐标）
+  - ✅ 错误处理（404, 503 网络错误）
+  - ✅ 86% 测试覆盖率
+
+### 测试基础设施
+- [ ] **P0-T6**: 数据层综合测试（pytest fixtures）- 可选优化
+  - 基础测试已完成（44 个测试，91% 覆盖率）
+  - 可选：添加更多 fixtures 简化测试代码
+
+**Sprint 1 完成度**: 5/6 任务完成（83%）
+**测试覆盖**: 44 个测试全部通过，91% 代码覆盖率
+
+---
+
+## Sprint 2: 评分引擎 (P0 - 最高优先级)
+
+### 重采样算法
+- [ ] **P0-T8**: 笔画重采样算法
+  - 文件: `backend/app/algorithms/resampling.py`
+  - 实现等间距重采样
+  - 处理不同长度的笔画
+  - TDD: 先写测试，验证输出点数一致
+
+### DTW 评分
+- [ ] **P0-T9**: DTW 距离计算（使用 dtw 库）
+  - 文件: `backend/app/algorithms/dtw.py`
+  - **关键**: 必须使用 `from dtw import dtw`
+  - **禁止**: 手写 `for` 循环实现
+  - 使用 `dist=lambda x, y: abs(x - y)` 曼哈顿距离
+  - TDD: 相同笔画距离=0，反向笔画距离大
+
+### 评分归一化
+- [ ] **P0-T10**: 评分归一化（0-100 分）
+  - 文件: `backend/app/scoring/normalizer.py`
+  - 将 DTW 距离转换为 0-100 分数
+  - 完美匹配 ≥95 分
+  - 微小偏差 70-95 分
+
+### 笔顺验证
+- [ ] **P0-T11**: 笔顺验证逻辑
+  - 文件: `backend/app/scoring/stroke_order.py`
+  - 检测笔画数量是否匹配
+  - 检测笔画方向是否正确
+  - 笔顺错误返回低分
+
+### 性能优化
+- [ ] **P0-T12**: 性能优化
+  - 单字评分 < 2 秒
+  - 添加性能测试
+
+---
+
+## Sprint 3: AI 模型集成 (P1 - 高优先级)
+
+### InkSight 集成 (⚠️ 高风险 - 严格版本约束)
+- [ ] **P1-T1**: InkSight Python 原生包装器（TensorFlow）
+  - 文件: `backend/app/models/inksight.py`
+  - **严格版本约束**: `tensorflow>=2.15.0,<2.18.0`
+  - **禁止**: 使用 ONNX
+  - 从 HuggingFace 加载 `google-research/inksight-small-p`
+  - 输出: 0-1 相对坐标
+
+- [ ] **P1-T2**: HuggingFace 模型下载
+  - 文件: `backend/app/models/model_loader.py`
+  - 实现模型权重缓存
+  - 首次加载时下载 small-p 权重
+
+### OCR 集成
+- [ ] **P1-T3**: PaddleOCR 字符验证
+  - 文件: `backend/app/models/paddle_ocr.py`
+  - 验证用户写的字是否是目标字
+  - 防止张冠李戴
+
+### OpenCV 预处理
+- [ ] **P1-T4**: OpenCV 预处理管道（透视变换）
+  - 文件: `backend/app/preprocessing/image.py`
+  - 透视变换 (warpPerspective)
+  - 二值化处理
+  - 裁剪无关背景
+
+### 骨架提取
+- [ ] **P1-T5**: 骨架提取（Zhang-Suen 算法）
+  - 文件: `backend/app/preprocessing/skeleton.py`
+  - 实现 Zhang-Suen 细化算法
+  - 从原始图片提取物理骨架
+  - **目的**: 用于幻觉抑制
+
+### 幻觉抑制
+- [ ] **P1-T6**: 基于掩码的幻觉抑制（**关键风险**）
+  - 文件: `backend/app/utils/hallucination_mask.py`
+  - 使用物理骨架掩码约束 InkSight 输出
+  - 过滤掉"画外"的幻觉点
+  - 坐标映射: 0-1 → 1024x1024
+
+---
+
+## Sprint 4: 前端基础 (P2 - 中等优先级)
+
+### Flutter 项目初始化
+- [ ] **P2-T1**: Flutter 项目初始化
+  - 目录: `frontend/`
+  - 配置 `pubspec.yaml`
+  - 添加依赖: `dio`, `flutter_svg`, `camera`, `provider`
+
+### API 客户端
+- [ ] **P2-T2**: HTTP 客户端层（Dio）
+  - 目录: `frontend/lib/api/`
+  - 封装后端 API 调用
+  - 错误处理
+
+### SVG 渲染
+- [ ] **P2-T3**: SVG 渲染组件（flutter_svg）
+  - 文件: `frontend/lib/widgets/character_display.dart`
+  - 显示 Hanzi Writer 字符
+  - 虚线引导叠加
+
+### 书写画布
+- [ ] **P2-T4**: 书写画布（CustomPaint）
+  - 文件: `frontend/lib/widgets/writing_canvas.dart`
+  - 捕获触摸输入
+  - 转换为笔画数据
+
+### 状态管理
+- [ ] **P2-T5**: 状态管理（Provider/Riverpod）
+  - 目录: `frontend/lib/providers/`
+  - 管理应用状态
+
+---
+
+## Sprint 5: 实时监测 (P1 - 高优先级)
+
+### ML Kit Pose 集成
+- [ ] **P1-T7**: ML Kit Pose 集成
+  - 文件: `frontend/lib/services/mlkit_service.dart`
+  - 使用 `google_ml_kit_pose_detection`
+  - **禁止**: 原生 MediaPipe C++ 桥接
+  - 使用 Lite 模型（最快）
+  - 启用 stream 模式
+
+### 坐姿检测
+- [ ] **P1-T8**: 坐姿检测算法
+  - 文件: `frontend/lib/services/posture_detector.dart`
+  - 计算脊柱角度
+  - 计算眼屏距离
+  - 实时反馈（<100ms 延迟）
+
+### 握笔检测
+- [ ] **P1-T9**: 握笔检测算法
+  - 文件: `frontend/lib/services/grip_detector.dart`
+  - 计算手指角度
+  - 检测握笔方式
+
+### 实时反馈 UI
+- [ ] **P1-T10**: 实时反馈 UI（AR Overlay）
+  - 文件: `frontend/lib/widgets/feedback_overlay.dart`
+  - AR 叠加层显示
+
+### 性能优化
+- [ ] **P1-T11**: 性能优化
+  - GPU 加速
+  - Isolate 处理（非阻塞 UI）
+
+### 警报系统
+- [ ] **P1-T12**: 警报系统
+  - 错误姿态触发警报
+
+---
+
+## Sprint 6: 高级功能 (P2 - 中等优先级)
+
+- [ ] **P2-T7**: 自定义范字流水线
+  - 教师创建个性化字模
+
+- [ ] **P2-T8**: 用户进度追踪
+  - SQLite 本地存储
+  - 云同步
+
+- [ ] **P2-T9**: 练习模式选择 UI
+  - 基础模式、专家模式
+
+- [ ] **P2-T10**: 性能分析仪表板
+  - 统计和可视化
+
+- [ ] **P2-T11**: UI/UX 打磨
+  - 生产就绪
+
+- [ ] **P2-T12**: 生产部署准备
+
+---
+
+## 已完成
+- [x] 项目初始化
+- [x] Ralph 配置
+- [x] Superpowers 安装
+- [x] PRD v2.1 导入
+
+---
+
+## 🎯 立即开始
+**当前优先级**: Sprint 2 - P0-T8 (笔画重采样算法)
+
+**下一步**: 开始 Sprint 2 评分引擎开发。
+
+**Sprint 1 回顾**:
+- ✅ 5/6 任务完成（83%）
+- ✅ 44 个测试全部通过
+- ✅ 91% 代码覆盖率
+- ✅ 真实 CDN 集成验证
+
+**Sprint 2 目标**:
+- DTW 评分引擎（使用 dtw-python 库）
+- 笔画重采样算法
+- 评分归一化（0-100 分）
+- 笔顺验证逻辑
+
+**命令**:
+```bash
+# 运行测试
+cd /Users/Zhuanz/Documents/01_SmartPen/smartpen-project/backend
+source .venv/bin/activate
+pytest tests/ -v
+
+# 启动 API 服务器（测试）
+uvicorn app.main:app --reload
+```

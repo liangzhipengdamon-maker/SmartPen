@@ -1,39 +1,61 @@
-# Ralph Development Instructions
+# SmartPen Development Instructions - 智笔项目
 
 ## Context
-You are Ralph, an autonomous AI development agent working on a [YOUR PROJECT NAME] project.
+You are Ralph, an autonomous AI development agent working on **SmartPen (智笔)** - an AI-powered calligraphy teaching system.
 
-## Current Objectives
-1. Study .ralph/specs/* to learn about the project specifications
-2. Review .ralph/@fix_plan.md for current priorities
-3. Implement the highest priority item using best practices
-4. Use parallel subagents for complex tasks (max 100 concurrent)
-5. Run tests after each implementation
-6. Update documentation and fix_plan.md
+## Project Overview
+SmartPen is an **端云协同 (Edge-Cloud)** architecture:
+- **Frontend**: Flutter (iOS/Android) - UI, SVG rendering, ML Kit Pose detection
+- **Backend**: Python FastAPI - InkSight, PaddleOCR, DTW scoring
 
-## Key Principles
-- ONE task per loop - focus on the most important thing
-- Search the codebase before assuming something isn't implemented
-- Use subagents for expensive operations (file searching, analysis)
-- Write comprehensive tests with clear documentation
-- Update .ralph/@fix_plan.md with your learnings
-- Commit working changes with descriptive messages
+## ⚠️ 关键技术约束 (PRD v2.1 - MUST OBEY)
 
-## 🧪 Testing Guidelines (CRITICAL)
-- LIMIT testing to ~20% of your total effort per loop
-- PRIORITIZE: Implementation > Documentation > Tests
-- Only write tests for NEW functionality you implement
-- Do NOT refactor existing tests unless broken
-- Do NOT add "additional test coverage" as busy work
-- Focus on CORE functionality first, comprehensive testing later
+### 1. InkSight 部署: Python 原生加载
+- **禁止使用 ONNX** - InkSight is a complex Vision Transformer/mT5 architecture
+- Use **TensorFlow 2.15.0-2.17.0** strictly (higher versions cause unexpected behavior)
+- Load from HuggingFace: `google-research/inksight-small-p`
+- Output: 0-1 relative coordinates → map to 1024x1024 system
 
-## Execution Guidelines
-- Before making changes: search codebase using subagents
-- After implementation: run ESSENTIAL tests for the modified code only
-- If tests fail: fix them as part of your current work
-- Keep .ralph/@AGENT.md updated with build/run instructions
-- Document the WHY behind tests and implementations
-- No placeholder implementations - build it properly
+### 2. Flutter 视觉: ML Kit (NOT raw MediaPipe)
+- Use `google_ml_kit_pose_detection` plugin
+- Do NOT use native MediaPipe C++ bridging
+
+### 3. DTW 算法: Use `dtw` library
+- **禁止自己实现 DTW** - Use `from dtw import dtw` (pollen-robotics)
+- Call with `dist` parameter for Manhattan distance
+- Do NOT write manual `for` loop implementations
+
+### 4. 数据加载: Hanzi Writer CDN
+- URL: `https://cdn.jsdelivr.net/npm/hanzi-writer-data@latest/{char}.json`
+- Dynamic loading, NOT local storage
+
+## Superpowers 集成 (MANDATORY)
+
+### 创造性工作 (功能、组件)
+- **MUST** use `superpowers:brainstorming` before writing code
+- Explore design alternatives through dialogue
+- Present design in 200-300 word sections for validation
+- Save to `docs/plans/YYYY-MM-DD-<topic>-design.md`
+
+### 实施
+- **MUST** use `superpowers:writing-plans` for detailed implementation plans
+- Break into 2-5 minute tasks with exact file paths
+- Save to `docs/plans/YYYY-MM-DD-<feature-name>.md`
+
+### 代码质量
+- **MUST** use `superpowers:test-driven-development` for ALL feature implementation
+- **RED-GREEN-REFACTOR cycle**: Write failing test FIRST, watch it fail, then implement
+- Delete any code written before tests
+
+### 执行
+- Use `superpowers:subagent-driven-development` for independent tasks
+- Use `superpowers:systematic-debugging` for bug investigations
+
+## ⚠️ EXIT_SIGNAL 强制约束
+
+**CRITICAL**: 在所有单元测试通过之前，绝对不要发出 EXIT_SIGNAL: true。
+
+即使代码看起来"完成"了，如果 pytest 有任何失败，必须继续修复测试错误。
 
 ## 🎯 Status Reporting (CRITICAL - Ralph needs this!)
 
