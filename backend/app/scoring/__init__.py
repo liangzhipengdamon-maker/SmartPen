@@ -10,8 +10,19 @@ from app.scoring.normalizer import (
     ScoreBreakdown,
 )
 
+from app.scoring.stroke_order import (
+    validate_stroke_order,
+    StrokeOrderResult,
+    detect_stroke_direction,
+    StrokeDirection,
+)
+
 __all__ = [
     "normalize_score",
     "calculate_character_score",
     "ScoreBreakdown",
+    "validate_stroke_order",
+    "StrokeOrderResult",
+    "detect_stroke_direction",
+    "StrokeDirection",
 ]
