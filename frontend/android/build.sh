@@ -79,7 +79,9 @@ BUILD_TYPE=$REPLY
 
 # 获取版本号
 VERSION=$(grep "version:" pubspec.yaml | head -1 | sed 's/version: //' | sed 's/+.*//')
-BUILD_NUMBER=$(date +%Y%m%d%H%M)
+# 生成构建号：YYMMDDHH (如 25012313 = 2025年1月23日13时)
+# 确保不超过 Android 最大限制 2100000000
+BUILD_NUMBER=$(date +%y%m%d%H)
 
 echo ""
 echo "版本号: $VERSION"
