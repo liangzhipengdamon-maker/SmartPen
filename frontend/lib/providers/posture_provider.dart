@@ -211,14 +211,19 @@ class CameraController {
   Future<void> stopCameraStream() async {
     try {
       await _internalController?.stopImageStream();
+    } catch (e) {
+      debugPrint('CameraController: Stop image stream error - $e');
+    }
+
+    try {
       await _internalController?.dispose();
+    } catch (e) {
+      debugPrint('CameraController: Dispose error - $e');
+    } finally {
       _internalController = null;
       _isInitialized = false;
-
       _provider.stopMonitoring();
       debugPrint('CameraController: Camera stream stopped');
-    } catch (e) {
-      debugPrint('CameraController: Stop error - $e');
     }
   }
 
