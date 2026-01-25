@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -70,14 +73,20 @@ class CharacterDisplay extends StatelessWidget {
   }
 
   Widget _buildSvgCharacter() {
-    // 构建 SVG 字符串
-    final svgPaths = character.strokes.map((stroke) => stroke.path).join(' ');
-
-    return SizedBox(
-      width: 200,
-      height: 200,
-      child: CustomPaint(
-        painter: _StrokePainter(strokes: character.strokes),
+    // 使用 CustomPaint 直接绘制 SVG 路径
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()..scale(1.0, -1.0, 1.0),
+        child: CustomPaint(
+          size: const Size(200, 200),
+          painter: _SvgPathPainter(strokes: character.strokes),
+        ),
       ),
     );
   }
@@ -124,9 +133,18 @@ class _StrokePainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
+    // DEBUG: 打印笔画信息
+    debugPrint('=== StrokePainter DEBUG ===');
+    debugPrint('Total strokes: ${strokes.length}');
+    debugPrint('Canvas size: ${size.width} x ${size.height}');
+
     // 绘制每个笔画
     for (final stroke in strokes) {
-      if (stroke.points.isEmpty) continue;
+      debugPrint('Stroke ${strokes.indexOf(stroke)}: points.length = ${stroke.points.length}');
+      if (stroke.points.isEmpty) {
+        debugPrint('  -> Skipping: points is empty!');
+        continue;
+      }
 
       final path = Path();
 
@@ -139,17 +157,102 @@ class _StrokePainter extends CustomPainter {
 
         if (i == 0) {
           path.moveTo(offset.dx, offset.dy);
+          debugPrint('  -> MoveTo: (${offset.dx.toStringAsFixed(2)}, ${offset.dy.toStringAsFixed(2)})');
         } else {
           path.lineTo(offset.dx, offset.dy);
         }
       }
 
       canvas.drawPath(path, strokePaint);
+      debugPrint('  -> Drew path with ${stroke.points.length} points');
     }
+    debugPrint('=== END DEBUG ===');
   }
 
   @override
   bool shouldRepaint(_StrokePainter oldDelegate) {
+    return strokes != oldDelegate.strokes;
+  }
+}
+
+/// SVG 路径绘制器 - 直接解析 SVG path 字符串并绘制
+class _SvgPathPainter extends CustomPainter {
+  final List<StrokeData> strokes;
+
+  _SvgPathPainter({required this.strokes});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 3.0  // 减小笔画宽度
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+
+    for (final stroke in strokes) {
+      final path = _parseSvgPath(stroke.path, size);
+      if (path != null) {
+        canvas.drawPath(path, paint);
+      }
+    }
+  }
+
+  Path? _parseSvgPath(String pathString, Size size) {
+    try {
+      final path = Path();
+      final commands = pathString.replaceAll('  ', ' ').trim().split(' ');
+
+      double x = 0, y = 0;
+      double startX = 0, startY = 0;
+
+      for (int i = 0; i < commands.length; i++) {
+        final cmd = commands[i];
+
+        if (cmd == 'M' || cmd == 'm') {
+          i++;
+          final num1 = double.parse(commands[i]) / 1024 * size.width;
+          i++;
+          final num2 = double.parse(commands[i]) / 1024 * size.height;
+          x = num1;
+          y = num2;
+          startX = x;
+          startY = y;
+          path.moveTo(x, y);
+        } else if (cmd == 'L' || cmd == 'l') {
+          i++;
+          final num1 = double.parse(commands[i]) / 1024 * size.width;
+          i++;
+          final num2 = double.parse(commands[i]) / 1024 * size.height;
+          x = num1;
+          y = num2;
+          path.lineTo(x, y);
+        } else if (cmd == 'Q' || cmd == 'q') {
+          i++;
+          final cx = double.parse(commands[i]) / 1024 * size.width;
+          i++;
+          final cy = double.parse(commands[i]) / 1024 * size.height;
+          i++;
+          final ex = double.parse(commands[i]) / 1024 * size.width;
+          i++;
+          final ey = double.parse(commands[i]) / 1024 * size.height;
+          x = ex;
+          y = ey;
+          path.quadraticBezierTo(cx, cy, ex, ey);
+        } else if (cmd == 'Z' || cmd == 'z') {
+          path.close();
+          x = startX;
+          y = startY;
+        }
+      }
+      return path;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SvgPathPainter oldDelegate) {
     return strokes != oldDelegate.strokes;
   }
 }

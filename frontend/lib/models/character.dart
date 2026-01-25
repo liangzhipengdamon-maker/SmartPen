@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
 /// 字符数据模型
 class CharacterData {
   final String character;
@@ -54,12 +57,15 @@ class StrokeData {
   });
 
   factory StrokeData.fromJson(Map<String, dynamic> json) {
+    final pointsList = json['points'];
+    final parsedPoints = (pointsList as List?)
+            ?.map((p) => PointData.fromJson(p as Map<String, dynamic>))
+            .toList() ??
+        [];
+
     return StrokeData(
       path: json['path'] ?? '',
-      points: (json['points'] as List?)
-              ?.map((p) => PointData.fromJson(p))
-              .toList() ??
-          [],
+      points: parsedPoints,
     );
   }
 
@@ -151,5 +157,3 @@ class ScoreResult {
     return Colors.red;
   }
 }
-
-import 'package:flutter/material.dart';
