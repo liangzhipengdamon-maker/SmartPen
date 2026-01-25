@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.api.characters import router as characters_router
+from app.api.scoring import router as scoring_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -31,6 +32,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(characters_router, prefix="/api", tags=["characters"])
+app.include_router(scoring_router, prefix="/api", tags=["scoring"])
 
 
 # Root endpoint
