@@ -20,5 +20,12 @@ void main() {
       await Future.delayed(Duration(milliseconds: 110)); // 等待超过 100ms
       expect(throttler.shouldProcess(), isTrue);
     });
+
+    test('shouldProcess 在正好 100ms 时返回 true', () async {
+      final throttler = FrameThrottler();
+      throttler.shouldProcess();
+      await Future.delayed(Duration(milliseconds: 90)); // 累计 ~100ms
+      expect(throttler.shouldProcess(), isTrue);
+    });
   });
 }
