@@ -9,9 +9,9 @@ class CharactersApi {
   CharactersApi({
     String? baseUrl,
     Dio? dio,
-  })  : baseUrl = baseUrl ?? 'http://192.168.101.11:8000',
+  })  : baseUrl = baseUrl ?? 'http://10.0.2.2:8000',
         _dio = dio ?? Dio(BaseOptions(
-          baseUrl: baseUrl ?? 'http://192.168.101.11:8000',
+          baseUrl: baseUrl ?? 'http://10.0.2.2:8000',
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 30),
         )) {

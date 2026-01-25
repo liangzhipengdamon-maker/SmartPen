@@ -99,19 +99,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   return Column(
                     children: [
-                      // 范字显示和书写区域
+                      // 范字显示和书写区域（纵向排列）
                       Expanded(
-                        child: Row(
+                        child: Column(
                           children: [
-                            // 左侧：范字
+                            // 上部：范字
                             Expanded(
+                              flex: 1,
                               child: CharacterDisplay(
                                 character: provider.currentCharacter!,
                               ),
                             ),
 
-                            // 右侧：书写区域
+                            // 下部：摄像头输入区域
                             Expanded(
+                              flex: 1,
                               child: WritingCanvas(
                                 onStrokeComplete: () {
                                   // 笔画完成回调
