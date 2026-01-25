@@ -192,7 +192,11 @@ class CharacterData(BaseModel):
             "character": self.character,
             "source": self.source.value,
             "strokes": [
-                {"path": s.path, "stroke_order": s.stroke_order}
+                {
+                    "path": s.path,
+                    "stroke_order": s.stroke_order,
+                    "points": [{"x": p.x, "y": p.y} for p in self.medians[s.stroke_order].points]
+                }
                 for s in self.strokes
             ],
             "medians": [

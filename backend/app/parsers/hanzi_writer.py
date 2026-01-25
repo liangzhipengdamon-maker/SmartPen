@@ -29,7 +29,7 @@ class HanziWriterLoader:
     }
     """
 
-    CDN_URL = "https://cdn.jsdelivr.net/npm/hanzi-writer-data@latest/"
+    CDN_URL = "https://cdn.jsdelivr.net/npm/hanzi-writer-data@2.0.1/"
 
     def __init__(self, timeout: float = 10.0):
         """
