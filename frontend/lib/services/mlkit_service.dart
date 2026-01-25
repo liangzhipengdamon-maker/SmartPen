@@ -38,9 +38,9 @@ class MLKitPoseService {
       }
 
       // 创建 Pose Detector
-      // 使用 Lite 模型（最快）和 stream 模式
+      // 使用 Base 模型（最快）和 stream 模式
       final options = PoseDetectorOptions(
-        model: PoseDetectionModel.lite,
+        model: PoseDetectionModel.base,
         mode: PoseDetectionMode.stream,
       );
 
@@ -70,10 +70,13 @@ class MLKitPoseService {
     _isProcessing = true;
 
     try {
+      // 转换 CameraImage 为 InputImage
+      final inputImage = ImageUtils.toInputImage(image);
+
       // 在后台 isolate 中处理
       final poses = await compute(_detectPoses, _PoseDetectionInput(
         detector: _poseDetector!,
-        image: image,
+        inputImage: inputImage,
       ));
 
       if (poses.isNotEmpty) {
@@ -97,17 +100,17 @@ class MLKitPoseService {
 /// 用于 isolate 计算的输入数据
 class _PoseDetectionInput {
   final PoseDetector detector;
-  final CameraImage image;
+  final InputImage inputImage;
 
   _PoseDetectionInput({
     required this.detector,
-    required this.image,
+    required this.inputImage,
   });
 }
 
 /// 在 isolate 中运行姿态检测
 Future<List<Pose>> _detectPoses(_PoseDetectionInput input) async {
-  final poses = await input.detector.processImage(input.image);
+  final poses = await input.detector.processImage(input.inputImage);
   return poses;
 }
 
@@ -146,8 +149,8 @@ extension PoseExtensions on Pose {
     if (left == null || right == null) return null;
 
     return ui.Offset(
-      (left.type.x + right.type.x) / 2,
-      (left.type.y + right.type.y) / 2,
+      (left.x + right.x) / 2,
+      (left.y + right.y) / 2,
     );
   }
 
@@ -158,8 +161,8 @@ extension PoseExtensions on Pose {
 
     if (left == null || right == null) return null;
 
-    final dx = right.type.x - left.type.x;
-    final dy = right.type.y - left.type.y;
+    final dx = right.x - left.x;
+    final dy = right.y - left.y;
 
     // 计算角度（弧度转度）
     final angle = (math.atan2(dy, dx) * 180 / 3.14159).abs();
@@ -178,19 +181,22 @@ class ImageUtils {
     }
     final bytes = allBytes.done().buffer.asUint8List();
 
+    // 确定图像格式
+    final format = InputImageFormat.values.firstWhere(
+      (f) => f.rawValue == image.format.raw,
+      orElse: () => InputImageFormat.nv21,
+    );
+
+    // 获取第一个平面的 bytesPerRow
+    final bytesPerRow = image.planes.isNotEmpty ? image.planes[0].bytesPerRow : 0;
+
     return InputImage.fromBytes(
       bytes: bytes,
       metadata: InputImageMetadata(
         size: ui.Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: InputImageRotation.values[image.orientation.value - 1],
-        format: InputImageFormat.nv21,
-        planeData: image.planes.map((plane) {
-          return InputImagePlaneMetadata(
-            bytesPerRow: plane.bytesPerRow,
-            height: image.height,
-            width: image.width,
-          );
-        }).toList(),
+        rotation: InputImageRotation.rotation0deg,
+        format: format,
+        bytesPerRow: bytesPerRow,
       ),
     );
   }

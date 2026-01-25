@@ -58,8 +58,8 @@ class PostureDetector {
 
     if (left == null || right == null) return null;
 
-    final dx = right.type.x - left.type.x;
-    final dy = right.type.y - left.type.y;
+    final dx = right.x - left.x;
+    final dy = right.y - left.y;
 
     // 计算角度（弧度转度）
     final angle = (math.atan2(dy, dx) * 180 / math.pi).abs();
@@ -82,8 +82,8 @@ class PostureDetector {
     if (leftEye == null || rightEye == null) return null;
 
     // 计算两眼之间的像素距离
-    final dx = rightEye.type.x - leftEye.type.x;
-    final dy = rightEye.type.y - leftEye.type.y;
+    final dx = rightEye.x - leftEye.x;
+    final dy = rightEye.y - leftEye.y;
     final pixelDistance = math.sqrt(dx * dx + dy * dy);
 
     // 假设两眼之间实际距离约 6.5cm
@@ -112,8 +112,8 @@ class PostureDetector {
 
     if (leftEar == null || rightEar == null) return null;
 
-    final dx = rightEar.type.x - leftEar.type.x;
-    final dy = rightEar.type.y - leftEar.type.y;
+    final dx = rightEar.x - leftEar.x;
+    final dy = rightEar.y - leftEar.y;
 
     // 计算倾斜角度
     final angle = math.atan2(dy, dx) * 180 / math.pi;

@@ -5,7 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import '../services/mlkit_service.dart';
-import '../services/posture_detector.dart';
+import '../services/posture_detector.dart' as detector;
 import '../services/posture_data.dart';
 
 /// 姿态监测状态管理
@@ -16,7 +16,7 @@ class PostureProvider extends ChangeNotifier {
   List<Pose> _currentPoses = [];
   bool _isMonitoring = false;
   String? _errorMessage;
-  Timer? _monitoringTimer;
+  StreamSubscription<List<Pose>>? _poseSubscription;
 
   // Getters
   PostureAnalysis? get currentAnalysis => _currentAnalysis;
@@ -48,20 +48,30 @@ class PostureProvider extends ChangeNotifier {
     if (_isMonitoring) return;
 
     _isMonitoring = true;
-    notifyListeners();
+
+    // 取消旧订阅
+    _poseSubscription?.cancel();
 
     // 订阅姿态流
-    _mlkitService.poseStream.listen((poses) {
-      _currentPoses = poses;
+    _poseSubscription = _mlkitService.poseStream.listen(
+      (poses) {
+        _currentPoses = poses;
 
-      // 分析姿态
-      if (poses.isNotEmpty) {
-        _currentAnalysis = PostureDetector.analyzePose(poses.first);
-      }
+        // 分析姿态
+        if (poses.isNotEmpty) {
+          _currentAnalysis = detector.PostureDetector.analyzePose(poses.first);
+        }
 
-      notifyListeners();
-    });
+        notifyListeners();
+      },
+      onError: (error) {
+        debugPrint('PostureProvider: Stream error - $error');
+        _errorMessage = '监测出错: $error';
+        notifyListeners();
+      },
+    );
 
+    notifyListeners();
     debugPrint('PostureProvider: Started monitoring');
   }
 
@@ -70,8 +80,10 @@ class PostureProvider extends ChangeNotifier {
     if (!_isMonitoring) return;
 
     _isMonitoring = false;
-    _monitoringTimer?.cancel();
-    _monitoringTimer = null;
+
+    // 取消订阅
+    _poseSubscription?.cancel();
+    _poseSubscription = null;
 
     // 清空数据
     _currentPoses = [];
@@ -99,7 +111,7 @@ class PostureProvider extends ChangeNotifier {
   int getPostureScore() {
     if (_currentAnalysis == null) return 0;
 
-    return PostureDetector.calculatePostureScore(_currentAnalysis!);
+    return detector.PostureDetector.calculatePostureScore(_currentAnalysis!);
   }
 
   @override
