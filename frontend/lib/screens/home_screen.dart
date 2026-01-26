@@ -225,10 +225,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ElevatedButton.icon(
                 onPressed: () async {
                   if (postureProvider.isMonitoring) {
+                    // 停止监测
                     await postureProvider.cameraController?.stopCameraStream();
+                    postureProvider.stopMonitoring();
                   } else {
+                    // 启动监测
                     try {
                       await postureProvider.cameraController!.startCameraStream();
+                      postureProvider.startMonitoring();
                     } catch (e) {
                       // 显示错误对话框
                       if (e.toString().contains('Permission')) {
