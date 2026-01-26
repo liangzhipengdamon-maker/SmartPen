@@ -19,12 +19,14 @@ class PostureProvider extends ChangeNotifier {
   bool _isMonitoring = false;
   String? _errorMessage;
   StreamSubscription<List<Pose>>? _poseSubscription;
+  CameraController? _cameraController;
 
   // Getters
   PostureAnalysis? get currentAnalysis => _currentAnalysis;
   List<Pose> get currentPoses => List.unmodifiable(_currentPoses);
   bool get isMonitoring => _isMonitoring;
   String? get errorMessage => _errorMessage;
+  CameraController? get cameraController => _cameraController;
 
   bool get hasGoodPosture {
     return _currentAnalysis?.isCorrect ?? false;
@@ -38,6 +40,11 @@ class PostureProvider extends ChangeNotifier {
     try {
       await _mlkitService.initialize();
       debugPrint('PostureProvider: ML Kit initialized');
+
+      // 初始化相机控制器
+      _cameraController = CameraController(this);
+      await _cameraController!.initialize();
+      debugPrint('PostureProvider: Camera controller initialized');
     } catch (e) {
       _errorMessage = '初始化失败: $e';
       debugPrint('PostureProvider: Initialization error - $e');
@@ -119,6 +126,7 @@ class PostureProvider extends ChangeNotifier {
   @override
   void dispose() {
     stopMonitoring();
+    _cameraController?.dispose();
     _mlkitService.dispose();
     super.dispose();
   }
@@ -232,4 +240,9 @@ class CameraController {
 
   /// 相机是否已初始化
   bool get isInitialized => _isInitialized;
+
+  /// 释放资源
+  void dispose() {
+    stopCameraStream();
+  }
 }
