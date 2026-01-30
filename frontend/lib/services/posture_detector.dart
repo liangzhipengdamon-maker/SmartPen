@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import 'posture_data.dart';
@@ -10,6 +11,8 @@ import 'posture_data.dart';
 /// - 脊柱角度
 /// - 眼屏距离
 /// - 头部倾斜角度
+/// - 人脸检测
+/// - 手部检测（含书写区域判定）
 class PostureDetector {
   /// 坐姿检测阈值
   static const double minEyeScreenDistance = 30.0; // cm
@@ -33,6 +36,10 @@ class PostureDetector {
 
     final isCorrect = isSpineCorrect && isDistanceCorrect && isHeadCorrect;
 
+    // 人脸和手部检测
+    final isFaceDetected = _hasFaceDetected(pose);
+    final hasVisibleHands = _hasVisibleHands(pose);
+
     return PostureAnalysis(
       isCorrect: isCorrect,
       spineAngle: spineAngle ?? 0.0,
@@ -46,6 +53,8 @@ class PostureDetector {
         eyeScreenDistance: eyeScreenDistance,
         headTilt: headTilt,
       ),
+      hasVisibleHands: hasVisibleHands,
+      isFaceDetected: isFaceDetected,
     );
   }
 
@@ -121,11 +130,65 @@ class PostureDetector {
     return angle;
   }
 
+  /// 新增：检测是否有可见的手部
+  ///
+  /// 通过检查 wrist landmarks 判断，并验证手部在"书写区域"
+  ///
+  /// 用户要求 #1: 手部区域判定
+  /// - Y 轴阈值：wrist.y > 0.6（屏幕下方为书写区域）
+  /// - 置信度阈值：0.5
+  static bool _hasVisibleHands(Pose pose) {
+    final leftWrist = pose.landmarks[PoseLandmarkType.leftWrist];
+    final rightWrist = pose.landmarks[PoseLandmarkType.rightWrist];
+
+    // 置信度阈值
+    const minConfidence = 0.5;
+
+    // Y 轴阈值：确保手在书写区域（屏幕下方）
+    // ML Kit 坐标系：(0,0) 为左上角，(1,1) 为右下角
+    // y > 0.6 表示手在屏幕下方 40% 的区域（书写区域）
+    const writingAreaYThreshold = 0.6;
+
+    // 检查左手腕
+    final leftValid = leftWrist != null &&
+        leftWrist.likelihood > minConfidence &&
+        leftWrist.y > writingAreaYThreshold;
+
+    // 检查右手腕
+    final rightValid = rightWrist != null &&
+        rightWrist.likelihood > minConfidence &&
+        rightWrist.y > writingAreaYThreshold;
+
+    final hasHands = leftValid || rightValid;
+
+    debugPrint('🖐️  Hand detection: left=$leftValid (${leftWrist?.y.toStringAsFixed(2)}), '
+        'right=$rightValid (${rightWrist?.y.toStringAsFixed(2)}), '
+        'hasHands=$hasHands');
+
+    return hasHands;
+  }
+
+  /// 新增：检测是否有人脸
+  ///
+  /// 通过检查 nose landmark 判断
+  /// 人脸检测使用简化方法（不依赖 Face Detection API）
+  static bool _hasFaceDetected(Pose pose) {
+    final nose = pose.landmarks[PoseLandmarkType.nose];
+
+    // nose landmark 存在且置信度足够高
+    final hasFace = nose != null && nose.likelihood > 0.3;
+
+    debugPrint('👤 Face detection: hasFace=$hasFace (${nose?.likelihood.toStringAsFixed(2)})');
+
+    return hasFace;
+  }
+
   /// 生成反馈信息
   static String _generateFeedback({
     required double? spineAngle,
     required double? eyeScreenDistance,
     required double? headTilt,
+    bool? hasVisibleHands,  // 新增参数（暂不使用，保留扩展性）
   }) {
     final issues = <String>[];
 
@@ -140,6 +203,9 @@ class PostureDetector {
     if (headTilt != null && headTilt.abs() >= maxHeadTilt) {
       issues.add('请保持头部正直，不要歪头');
     }
+
+    // 注意：手部提示由 CalibrationState 的 message 处理
+    // 这里保留传统的反馈逻辑
 
     if (issues.isEmpty) {
       return '坐姿良好，继续保持';
