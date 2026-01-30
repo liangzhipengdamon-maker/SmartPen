@@ -51,6 +51,41 @@ SmartPen is an **端云协同 (Edge-Cloud)** architecture:
 - Use `superpowers:subagent-driven-development` for independent tasks
 - Use `superpowers:systematic-debugging` for bug investigations
 
+## NotebookLM 集成 (MANDATORY)
+
+### Skill 概述
+NotebookLM Skill (pleaseprompto/notebooklm-skill) 允许查询项目文档和外部 API 引用，直接获取基于源头的答案，避免幻觉问题。
+
+### 何时使用 NotebookLM
+**MUST** 在以下情况下使用：
+1. **技术问题调研** - 当遇到需要外部文档或最佳实践的技术问题时
+2. **API 参考查询** - 当需要准确的 API 文档或使用示例时
+3. **跨框架研究** - 当需要理解多个框架/库之间的集成方式时
+4. **错误诊断** - 当遇到构建错误、依赖问题时，可以查询外部资源和类似问题的解决方案
+5. **文档验证** - 验证技术决策的正确性，获取权威来源的确认
+
+### 使用方式
+调用方式：`/notebooklm` 或 `Skill(tool="notebooklm")`
+
+典型工作流：
+```
+1. 识别需要调研的技术问题
+2. 调用 NotebookLM skill
+3. 提供具体的问题上下文
+4. 获取基于源头的答案和引用
+5. 验证并应用到项目中
+```
+
+### 示例场景
+- "Flutter Gradle 构建失败，workspace metadata 损坏如何修复？"
+- "InkSight 与 TensorFlow 2.15 的兼容性问题"
+- "ML Kit Pose Detection 在 Android 上的性能优化"
+
+### 输出要求
+- 必须引用来源 URL 或文档路径
+- 对解决方案进行验证后再应用到代码
+- 将有用的发现记录到 `docs/` 目录
+
 ## ⚠️ EXIT_SIGNAL 强制约束
 
 **CRITICAL**: 在所有单元测试通过之前，绝对不要发出 EXIT_SIGNAL: true。

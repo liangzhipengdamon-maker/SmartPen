@@ -80,7 +80,7 @@ class MLKitPoseService {
       final frameNumber = DateTime.now().millisecondsSinceEpoch ~/ 100;
       if (frameNumber % 30 == 0) {
         debugPrint('📸 Frame: ${image.width}x${image.height}, '
-            'rotation: ${inputImage.metadata.rotation}, '
+            'rotation: ${inputImage.metadata?.rotation}, '
             'poses: ${poses.length}, '
             'landmarks: ${poses.isNotEmpty ? poses.first.landmarks.length : 0}');
       }

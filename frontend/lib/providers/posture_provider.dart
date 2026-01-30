@@ -146,7 +146,7 @@ class PostureProvider extends ChangeNotifier {
 
     try {
       // 获取相机描述用于旋转计算
-      final cameraDescription = _internalController?.description;
+      final cameraDescription = _cameraController?._internalController?.description;
       await _mlkitService.processCameraImage(image, cameraDescription);
     } catch (e) {
       debugPrint('PostureProvider: Failed to process image - $e');

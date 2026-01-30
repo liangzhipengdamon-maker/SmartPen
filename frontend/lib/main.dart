@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/character_provider.dart';
+import 'providers/posture_provider.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
@@ -38,7 +39,7 @@ class SmartPenApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => CharacterProvider()),
-        // 其他 providers 可以在这里添加
+        ChangeNotifierProvider(create: (_) => PostureProvider()),
       ],
       child: MaterialApp(
         title: '智笔 - AI 书法教学',
