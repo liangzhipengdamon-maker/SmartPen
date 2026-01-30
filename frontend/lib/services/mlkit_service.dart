@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -176,12 +177,12 @@ class ImageUtils {
 
   /// 将 CameraImage 转换为 InputImage（用于 ML Kit）
   ///
-  /// 基于 ML Kit 官方推荐方法：
-  /// 1. 简单拼接所有 planes 的字节（无需复杂 YUV 转换）
-  /// 2. 格式声明为 nv21（插件层将其视为 nv21 处理）
+  /// **关键修复：** Android YUV_420_888 (raw=35) 必须作为 NV21 处理
+  /// 1. 拼接所有 planes 的字节
+  /// 2. Android 强制使用 InputImageFormat.nv21
   /// 3. 使用 fromRawValue 动态计算旋转角度
   static InputImage toInputImage(CameraImage image, CameraDescription? cameraDescription) {
-    // 1. 处理字节流拼接（官方推荐：简单拼接所有 planes）
+    // 1. 处理字节流拼接 - 简单拼接所有 planes
     final allBytes = WriteBuffer();
     for (final Plane plane in image.planes) {
       allBytes.putUint8List(plane.bytes);
@@ -191,8 +192,7 @@ class ImageUtils {
     // 2. 获取图像尺寸
     final size = ui.Size(image.width.toDouble(), image.height.toDouble());
 
-    // 3. 计算旋转角度（关键修复点）
-    // 使用 fromRawValue 动态获取，避免硬编码
+    // 3. 计算旋转角度
     InputImageRotation rotation;
 
     if (cameraDescription != null) {
@@ -211,15 +211,24 @@ class ImageUtils {
       rotation = InputImageRotation.rotation270deg;
     }
 
-    // 4. 确定输入格式（官方推荐：Android 使用 nv21）
-    // 虽然源是 yuv420_888，但插件层将其视为 nv21 处理
-    final format = InputImageFormatValue.fromRawValue(image.format.raw)
-        ?? InputImageFormat.nv21;
+    // ========== 关键修复：格式映射 ==========
+    // Android YUV_420_888 (raw=35) 必须作为 NV21 处理
+    // 这是修复 InputImageConverterError 的核心
+    final InputImageFormat format;
 
-    // 5. 提取行跨度（使用 Y 平面）
+    if (Platform.isAndroid) {
+      // Android: 强制使用 nv21（即使源格式是 YUV_420_888）
+      format = InputImageFormat.nv21;
+    } else {
+      // iOS: 尝试使用原始格式，回退到 bgra8888
+      format = InputImageFormatValue.fromRawValue(image.format.raw)
+          ?? InputImageFormat.bgra8888;
+    }
+
+    // 4. 提取行跨度（使用 Y 平面）
     final bytesPerRow = image.planes.isNotEmpty ? image.planes[0].bytesPerRow : 0;
 
-    // 6. 构建元数据
+    // 5. 构建元数据
     final metadata = InputImageMetadata(
       size: size,
       rotation: rotation,
@@ -227,10 +236,10 @@ class ImageUtils {
       bytesPerRow: bytesPerRow,
     );
 
-    // 7. 调试日志
+    // 6. 调试日志
     if (_frameCount % 30 == 0) {
       debugPrint('📷 Frame: ${image.width}x${image.height}, '
-          'format: raw=${image.format.raw}, '
+          'format: raw=${image.format.raw} → $format, '
           'planes: ${image.planes.length}, '
           'bytesPerRow: $bytesPerRow');
     }
