@@ -31,11 +31,8 @@ class MLKitPoseService {
     }
 
     try {
-      // 请求相机权限
-      final cameraStatus = await Permission.camera.request();
-      if (!cameraStatus.isGranted) {
-        throw Exception('Camera permission denied');
-      }
+      // 注意：权限请求已移至 HomeScreen Switch 中统一处理
+      // 不再在此处请求权限，避免重复请求和权限竞争
 
       // 创建 Pose Detector
       // 使用 Base 模型（最快）和 stream 模式
@@ -46,7 +43,7 @@ class MLKitPoseService {
 
       _poseDetector = PoseDetector(options: options);
 
-      debugPrint('MLKitPoseService: Initialized with Lite model + stream mode');
+      debugPrint('MLKitPoseService: Initialized with Base model + stream mode');
     } catch (e) {
       debugPrint('MLKitPoseService: Initialization failed - $e');
       rethrow;
@@ -56,7 +53,7 @@ class MLKitPoseService {
   /// 处理相机图像帧并检测姿态
   ///
   /// 在 Isolate 中运行以避免阻塞 UI 线程
-  Future<void> processCameraImage(CameraImage image) async {
+  Future<void> processCameraImage(CameraImage image, CameraDescription? cameraDescription) async {
     if (_poseDetector == null) {
       debugPrint('MLKitPoseService: Not initialized');
       return;
@@ -70,14 +67,23 @@ class MLKitPoseService {
     _isProcessing = true;
 
     try {
-      // 转换 CameraImage 为 InputImage
-      final inputImage = ImageUtils.toInputImage(image);
+      // 转换 CameraImage 为 InputImage（传递相机描述用于旋转计算）
+      final inputImage = ImageUtils.toInputImage(image, cameraDescription);
 
       // 在后台 isolate 中处理
       final poses = await compute(_detectPoses, _PoseDetectionInput(
         detector: _poseDetector!,
         inputImage: inputImage,
       ));
+
+      // 添加调试日志（每 30 帧打印一次）
+      final frameNumber = DateTime.now().millisecondsSinceEpoch ~/ 100;
+      if (frameNumber % 30 == 0) {
+        debugPrint('📸 Frame: ${image.width}x${image.height}, '
+            'rotation: ${inputImage.metadata.rotation}, '
+            'poses: ${poses.length}, '
+            'landmarks: ${poses.isNotEmpty ? poses.first.landmarks.length : 0}');
+      }
 
       if (poses.isNotEmpty) {
         _poseStreamController.add(poses);
@@ -172,8 +178,13 @@ extension PoseExtensions on Pose {
 
 /// 图像转换工具
 class ImageUtils {
+  static int _frameCount = 0;
+
   /// 将 CameraImage 转换为 InputImage（用于 ML Kit）
-  static InputImage toInputImage(CameraImage image) {
+  ///
+  /// 修复旋转问题：根据相机描述计算正确的旋转角度
+  /// Android 前置摄像头通常需要 270° 旋转来匹配竖屏方向
+  static InputImage toInputImage(CameraImage image, CameraDescription? cameraDescription) {
     // 将 CameraImage 转换为 ML Kit 可用的格式
     final allBytes = WriteBuffer();
     for (final Plane plane in image.planes) {
@@ -190,11 +201,53 @@ class ImageUtils {
     // 获取第一个平面的 bytesPerRow
     final bytesPerRow = image.planes.isNotEmpty ? image.planes[0].bytesPerRow : 0;
 
+    // ========== 旋转角度计算 ==========
+    InputImageRotation rotation;
+
+    if (cameraDescription != null) {
+      // 获取传感器方向
+      final sensorOrientation = cameraDescription.sensorOrientation;
+
+      // Android 前置摄像头在竖屏模式下的旋转计算
+      // 传感器方向 270° 需要转换为 InputImageRotation.rotation270deg
+      // 这样 ML Kit 才能正确检测竖向的人脸
+      switch (sensorOrientation) {
+        case 0:
+          rotation = InputImageRotation.rotation0deg;
+          break;
+        case 90:
+          rotation = InputImageRotation.rotation90deg;
+          break;
+        case 180:
+          rotation = InputImageRotation.rotation180deg;
+          break;
+        case 270:
+          rotation = InputImageRotation.rotation270deg;
+          break;
+        default:
+          // 默认：前置摄像头通常是 270°
+          rotation = InputImageRotation.rotation270deg;
+      }
+
+      // 调试日志（每 30 帧打印一次）
+      _frameCount++;
+      if (_frameCount % 30 == 0) {
+        debugPrint('🔄 Camera rotation calculation: '
+            'sensorOrientation=$sensorOrientation°, '
+            'inputImageRotation=$rotation, '
+            'lensDirection=${cameraDescription.lensDirection}');
+      }
+    } else {
+      // 没有相机描述时，使用默认值（前置摄像头通常 270°）
+      debugPrint('⚠️  No camera description, using default rotation (270deg)');
+      rotation = InputImageRotation.rotation270deg;
+    }
+
     return InputImage.fromBytes(
       bytes: bytes,
       metadata: InputImageMetadata(
         size: ui.Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: InputImageRotation.rotation0deg,
+        rotation: rotation,
         format: format,
         bytesPerRow: bytesPerRow,
       ),
