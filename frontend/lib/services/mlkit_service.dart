@@ -1,13 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 /// ML Kit Pose Detection 服务
 ///
@@ -52,7 +49,9 @@ class MLKitPoseService {
 
   /// 处理相机图像帧并检测姿态
   ///
-  /// 在 Isolate 中运行以避免阻塞 UI 线程
+  /// 注意：不再使用 compute() 避免 BackgroundIsolateBinaryMessenger 错误
+  /// ML Kit Pose Detection 已在原生层优化，不会阻塞 UI 线程
+  /// 配合 FrameThrottler（10 FPS）使用，性能表现良好
   Future<void> processCameraImage(CameraImage image, CameraDescription? cameraDescription) async {
     if (_poseDetector == null) {
       debugPrint('MLKitPoseService: Not initialized');
@@ -70,19 +69,31 @@ class MLKitPoseService {
       // 转换 CameraImage 为 InputImage（传递相机描述用于旋转计算）
       final inputImage = ImageUtils.toInputImage(image, cameraDescription);
 
-      // 在后台 isolate 中处理
-      final poses = await compute(_detectPoses, _PoseDetectionInput(
-        detector: _poseDetector!,
-        inputImage: inputImage,
-      ));
+      // 直接调用 ML Kit 进行姿态检测
+      // 不再使用 compute() 避免 BackgroundIsolateBinaryMessenger 错误
+      final poses = await _poseDetector!.processImage(inputImage);
 
       // 添加调试日志（每 30 帧打印一次）
       final frameNumber = DateTime.now().millisecondsSinceEpoch ~/ 100;
       if (frameNumber % 30 == 0) {
         debugPrint('📸 Frame: ${image.width}x${image.height}, '
+            'format: raw=${image.format.raw}, '
             'rotation: ${inputImage.metadata?.rotation}, '
             'poses: ${poses.length}, '
             'landmarks: ${poses.isNotEmpty ? poses.first.landmarks.length : 0}');
+
+        // 打印 nose 坐标（如果检测到）
+        if (poses.isNotEmpty) {
+          final pose = poses.first;
+          final nose = pose.landmarks[PoseLandmarkType.nose];
+          if (nose != null) {
+            debugPrint('👃 Nose: x=${nose.x.toStringAsFixed(3)}, '
+                'y=${nose.y.toStringAsFixed(3)}, '
+                'likelihood=${nose.likelihood.toStringAsFixed(3)}');
+          } else {
+            debugPrint('⚠️  No nose landmark detected');
+          }
+        }
       }
 
       if (poses.isNotEmpty) {
@@ -101,23 +112,6 @@ class MLKitPoseService {
     _poseDetector = null;
     await _poseStreamController.close();
   }
-}
-
-/// 用于 isolate 计算的输入数据
-class _PoseDetectionInput {
-  final PoseDetector detector;
-  final InputImage inputImage;
-
-  _PoseDetectionInput({
-    required this.detector,
-    required this.inputImage,
-  });
-}
-
-/// 在 isolate 中运行姿态检测
-Future<List<Pose>> _detectPoses(_PoseDetectionInput input) async {
-  final poses = await input.detector.processImage(input.inputImage);
-  return poses;
 }
 
 /// 姿态数据扩展
@@ -182,75 +176,68 @@ class ImageUtils {
 
   /// 将 CameraImage 转换为 InputImage（用于 ML Kit）
   ///
-  /// 修复旋转问题：根据相机描述计算正确的旋转角度
-  /// Android 前置摄像头通常需要 270° 旋转来匹配竖屏方向
+  /// 基于 ML Kit 官方推荐方法：
+  /// 1. 简单拼接所有 planes 的字节（无需复杂 YUV 转换）
+  /// 2. 格式声明为 nv21（插件层将其视为 nv21 处理）
+  /// 3. 使用 fromRawValue 动态计算旋转角度
   static InputImage toInputImage(CameraImage image, CameraDescription? cameraDescription) {
-    // 将 CameraImage 转换为 ML Kit 可用的格式
+    // 1. 处理字节流拼接（官方推荐：简单拼接所有 planes）
     final allBytes = WriteBuffer();
     for (final Plane plane in image.planes) {
       allBytes.putUint8List(plane.bytes);
     }
     final bytes = allBytes.done().buffer.asUint8List();
 
-    // 确定图像格式
-    final format = InputImageFormat.values.firstWhere(
-      (f) => f.rawValue == image.format.raw,
-      orElse: () => InputImageFormat.nv21,
-    );
+    // 2. 获取图像尺寸
+    final size = ui.Size(image.width.toDouble(), image.height.toDouble());
 
-    // 获取第一个平面的 bytesPerRow
-    final bytesPerRow = image.planes.isNotEmpty ? image.planes[0].bytesPerRow : 0;
-
-    // ========== 旋转角度计算 ==========
+    // 3. 计算旋转角度（关键修复点）
+    // 使用 fromRawValue 动态获取，避免硬编码
     InputImageRotation rotation;
 
     if (cameraDescription != null) {
-      // 获取传感器方向
-      final sensorOrientation = cameraDescription.sensorOrientation;
-
-      // Android 前置摄像头在竖屏模式下的旋转计算
-      // 传感器方向 270° 需要转换为 InputImageRotation.rotation270deg
-      // 这样 ML Kit 才能正确检测竖向的人脸
-      switch (sensorOrientation) {
-        case 0:
-          rotation = InputImageRotation.rotation0deg;
-          break;
-        case 90:
-          rotation = InputImageRotation.rotation90deg;
-          break;
-        case 180:
-          rotation = InputImageRotation.rotation180deg;
-          break;
-        case 270:
-          rotation = InputImageRotation.rotation270deg;
-          break;
-        default:
-          // 默认：前置摄像头通常是 270°
-          rotation = InputImageRotation.rotation270deg;
-      }
+      rotation = InputImageRotationValue.fromRawValue(cameraDescription.sensorOrientation)
+          ?? InputImageRotation.rotation0deg;
 
       // 调试日志（每 30 帧打印一次）
       _frameCount++;
       if (_frameCount % 30 == 0) {
-        debugPrint('🔄 Camera rotation calculation: '
-            'sensorOrientation=$sensorOrientation°, '
+        debugPrint('🔄 Camera rotation: sensorOrientation=${cameraDescription.sensorOrientation}°, '
             'inputImageRotation=$rotation, '
             'lensDirection=${cameraDescription.lensDirection}');
       }
     } else {
-      // 没有相机描述时，使用默认值（前置摄像头通常 270°）
       debugPrint('⚠️  No camera description, using default rotation (270deg)');
       rotation = InputImageRotation.rotation270deg;
     }
 
+    // 4. 确定输入格式（官方推荐：Android 使用 nv21）
+    // 虽然源是 yuv420_888，但插件层将其视为 nv21 处理
+    final format = InputImageFormatValue.fromRawValue(image.format.raw)
+        ?? InputImageFormat.nv21;
+
+    // 5. 提取行跨度（使用 Y 平面）
+    final bytesPerRow = image.planes.isNotEmpty ? image.planes[0].bytesPerRow : 0;
+
+    // 6. 构建元数据
+    final metadata = InputImageMetadata(
+      size: size,
+      rotation: rotation,
+      format: format,
+      bytesPerRow: bytesPerRow,
+    );
+
+    // 7. 调试日志
+    if (_frameCount % 30 == 0) {
+      debugPrint('📷 Frame: ${image.width}x${image.height}, '
+          'format: raw=${image.format.raw}, '
+          'planes: ${image.planes.length}, '
+          'bytesPerRow: $bytesPerRow');
+    }
+
     return InputImage.fromBytes(
       bytes: bytes,
-      metadata: InputImageMetadata(
-        size: ui.Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: bytesPerRow,
-      ),
+      metadata: metadata,
     );
   }
 }
