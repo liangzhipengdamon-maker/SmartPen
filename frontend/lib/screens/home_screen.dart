@@ -6,12 +6,12 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import '../widgets/character_display.dart';
-import '../widgets/writing_canvas_drawing.dart';
 import '../widgets/score_panel.dart';
 import '../widgets/feedback_overlay.dart';
 import '../widgets/camera_preview.dart';
 import '../widgets/camera_permission_dialog.dart';
 import '../widgets/pose_painter.dart';
+import '../widgets/ai_tutor_dashboard.dart';
 import '../providers/character_provider.dart';
 import '../providers/posture_provider.dart';
 import '../services/posture_data.dart';
@@ -369,30 +369,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// 练习区域（画布）- 正方形田字格
-  Widget _buildPracticeArea() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      child: Column(
-        children: [
-          const Text(
-            '练习区',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          AspectRatio(
-            aspectRatio: 1.0,
-            child: WritingCanvasDrawing(
-              onStrokeComplete: () {
-                debugPrint('Stroke completed');
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 底部操作按钮
   Widget _buildActionButtons() {
     return Consumer<CharacterProvider>(
@@ -403,31 +379,9 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton.icon(
-                onPressed: charProvider.strokeCount > 0 ? charProvider.undoStroke : null,
-                icon: const Icon(Icons.undo),
-                label: const Text('撤销'),
-              ),
-              ElevatedButton.icon(
-                onPressed: charProvider.strokeCount > 0 ? charProvider.clearWriting : null,
-                icon: const Icon(Icons.clear),
-                label: const Text('清空'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: charProvider.strokeCount > 0
-                    ? () => charProvider.submitScore()
-                    : null,
-                icon: const Icon(Icons.grade),
-                label: const Text('评分'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                ),
+                onPressed: () => _loadCharacter(),  // 简化：只保留重新加载
+                icon: const Icon(Icons.refresh),
+                label: const Text('换字'),
               ),
             ],
           ),
@@ -436,7 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// ========== 练习界面 - 范字 + 画布 ==========
+  /// ========== 练习界面 - 范字 + AI 导师仪表板 ==========
   Widget _buildPracticeInterface() {
     return SafeArea(
       child: SingleChildScrollView(
@@ -445,7 +399,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildCharacterInput(),
             _buildReferenceArea(),
             const SizedBox(height: 16),
-            _buildPracticeArea(),
+            const AiTutorDashboard(),  // 新增 AI 导师仪表板
+            const SizedBox(height: 16),
             _buildActionButtons(),
             const SizedBox(height: 16),
           ],
