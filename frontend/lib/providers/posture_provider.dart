@@ -10,6 +10,7 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import '../services/mlkit_service.dart';
 import '../services/posture_detector.dart' as detector;
 import '../services/posture_data.dart';
+import '../services/grip_state.dart';
 import '../services/calibration_state_manager.dart';
 import '../utils/frame_throttler.dart';
 

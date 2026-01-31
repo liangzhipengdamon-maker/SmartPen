@@ -22,6 +22,10 @@ class AiTutorDashboard extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
+        debugPrint('AiTutorDashboard analysis.runtimeType=${analysis.runtimeType}');
+        debugPrint('AiTutorDashboard analysis is PostureAnalysis=${analysis is PostureAnalysis}');
+        debugPrint('AiTutorDashboard analysis.toString()=$analysis');
+
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           padding: const EdgeInsets.all(12.0),

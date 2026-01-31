@@ -57,7 +57,6 @@ class SmartPenApp extends StatelessWidget {
         home: const HomeScreen(),
         debugShowCheckedModeBanner: false,
         routes: {
-          '/': (context) => const HomeScreen(),
           '/photo_capture': (context) => const PhotoCapturePage(),
         },
       ),
