@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'character.dart';
 
-/// 姿态分析结果
-class PostureAnalysis {
+/// 姿态分析结果 (API 模型)
+class ApiPostureAnalysis {
   final bool isCorrect; // 姿态是否正确
   final double score; // 姿态得分 0-100
   final String level; // 等级: good, warning, critical
@@ -12,7 +12,7 @@ class PostureAnalysis {
   final double eyeScreenDistance; // 眼屏距离
   final double headTilt; // 头部倾斜
 
-  PostureAnalysis({
+  ApiPostureAnalysis({
     required this.isCorrect,
     required this.score,
     required this.level,
@@ -23,8 +23,8 @@ class PostureAnalysis {
     required this.headTilt,
   });
 
-  factory PostureAnalysis.fromJson(Map<String, dynamic> json) {
-    return PostureAnalysis(
+  factory ApiPostureAnalysis.fromJson(Map<String, dynamic> json) {
+    return ApiPostureAnalysis(
       isCorrect: json['is_correct'] ?? false,
       score: (json['score'] ?? 0.0).toDouble(),
       level: json['level'] ?? 'unknown',
@@ -96,7 +96,7 @@ class ComprehensiveScoreResult {
   final double postureScore; // 姿态得分 (30% 权重)
   final String grade; // 等级
   final List<StrokeAnalysisResult> strokeAnalysis; // 各笔画分析
-  final PostureAnalysis? postureAnalysis; // 姿态分析
+  final ApiPostureAnalysis? postureAnalysis; // 姿态分析 (API 模型)
   final String feedback; // 综合反馈
 
   ComprehensiveScoreResult({
@@ -120,7 +120,7 @@ class ComprehensiveScoreResult {
               .toList() ??
           [],
       postureAnalysis: json['posture_analysis'] != null
-          ? PostureAnalysis.fromJson(json['posture_analysis'])
+          ? ApiPostureAnalysis.fromJson(json['posture_analysis'])
           : null,
       feedback: json['feedback'] ?? '',
     );
