@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/posture_provider.dart';
 import '../services/posture_data.dart';
+import '../services/grip_state.dart';
 
 /// AI 导师仪表板 - 显示姿态和手部状态
 class AiTutorDashboard extends StatelessWidget {
