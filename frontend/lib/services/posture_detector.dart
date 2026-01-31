@@ -36,9 +36,22 @@ class PostureDetector {
 
     final isCorrect = isSpineCorrect && isDistanceCorrect && isHeadCorrect;
 
+    // 每 30 帧打印详细的姿态指标
+    final frameCount = DateTime.now().millisecondsSinceEpoch ~/ 100;
+    if (frameCount % 30 == 0) {
+      debugPrint('📐 Posture Metrics: '
+          'spine=${spineAngle?.toStringAsFixed(1)}°/$maxSpineAngle° (ok=$isSpineCorrect), '
+          'distance=${eyeScreenDistance?.toStringAsFixed(1)}cm/$minEyeScreenDistance°cm (ok=$isDistanceCorrect), '
+          'tilt=${headTilt?.toStringAsFixed(1)}°/$maxHeadTilt° (ok=$isHeadCorrect), '
+          'isCorrect=$isCorrect');
+    }
+
     // 人脸和手部检测
     final isFaceDetected = _hasFaceDetected(pose);
     final hasVisibleHands = _hasVisibleHands(pose);
+
+    // 握笔状态检测
+    final gripState = _detectGripState(pose);
 
     return PostureAnalysis(
       isCorrect: isCorrect,
@@ -55,6 +68,7 @@ class PostureDetector {
       ),
       hasVisibleHands: hasVisibleHands,
       isFaceDetected: isFaceDetected,
+      gripState: gripState,  // 新增
     );
   }
 
@@ -161,9 +175,14 @@ class PostureDetector {
 
     final hasHands = leftValid || rightValid;
 
-    debugPrint('🖐️  Hand detection: left=$leftValid (${leftWrist?.y.toStringAsFixed(2)}), '
-        'right=$rightValid (${rightWrist?.y.toStringAsFixed(2)}), '
-        'hasHands=$hasHands');
+    // 详细的调试日志（每 30 帧打印一次）
+    final frameCount = DateTime.now().millisecondsSinceEpoch ~/ 100;
+    if (frameCount % 30 == 0) {
+      debugPrint('🤝 Hand Detection: '
+          'leftWrist: conf=${leftWrist?.likelihood.toStringAsFixed(3)}, y=${leftWrist?.y.toStringAsFixed(3)}, valid=$leftValid; '
+          'rightWrist: conf=${rightWrist?.likelihood.toStringAsFixed(3)}, y=${rightWrist?.y.toStringAsFixed(3)}, valid=$rightValid; '
+          'hasHands=$hasHands');
+    }
 
     return hasHands;
   }
@@ -181,6 +200,31 @@ class PostureDetector {
     debugPrint('👤 Face detection: hasFace=$hasFace (${nose?.likelihood.toStringAsFixed(2)})');
 
     return hasFace;
+  }
+
+  /// 检测握笔状态（Sprint 5 占位实现）
+  /// Sprint 6 将添加复杂握笔分析
+  static GripState _detectGripState(Pose pose) {
+    final leftWrist = pose.landmarks[PoseLandmarkType.leftWrist];
+    final rightWrist = pose.landmarks[PoseLandmarkType.rightWrist];
+
+    const minConfidence = 0.5;
+    const writingAreaYThreshold = 0.6;  // 底部 ROI（书写区域）
+
+    // 检查手腕是否在底部 ROI 可见
+    final leftValid = leftWrist != null &&
+        leftWrist.likelihood > minConfidence &&
+        leftWrist.y > writingAreaYThreshold;
+
+    final rightValid = rightWrist != null &&
+        rightWrist.likelihood > minConfidence &&
+        rightWrist.y > writingAreaYThreshold;
+
+    if (leftValid || rightValid) {
+      return GripState.holdingPen;
+    }
+
+    return GripState.noHand;
   }
 
   /// 生成反馈信息

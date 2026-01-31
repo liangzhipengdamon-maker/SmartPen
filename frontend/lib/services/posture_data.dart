@@ -13,6 +13,7 @@ class PostureAnalysis {
   final String feedback;
   final bool hasVisibleHands;  // 是否检测到手部
   final bool isFaceDetected;   // 是否检测到人脸
+  final GripState gripState;   // 握笔状态
 
   PostureAnalysis({
     required this.isCorrect,
@@ -25,6 +26,7 @@ class PostureAnalysis {
     required this.feedback,
     this.hasVisibleHands = false,  // 新增，默认 false
     this.isFaceDetected = false,   // 新增，默认 false
+    this.gripState = GripState.unknown,  // 新增，默认 unknown
   });
 
   @override
@@ -34,7 +36,8 @@ class PostureAnalysis {
         'tilt: ${headTiltAngle.toStringAsFixed(1)}°, '
         'correct: $isCorrect, '
         'hands: $hasVisibleHands, '
-        'face: $isFaceDetected)';
+        'face: $isFaceDetected, '
+        'grip: $gripState)';
   }
 
   /// 获取主要问题
@@ -79,12 +82,12 @@ class PostureAnalysis {
   }
 
   /// 获取校准状态
+  ///
+  /// 简化版：只检查人脸和手部，忽略不可靠的姿态指标（spine/tilt/distance）
+  /// 这些指标的计算算法当前存在问题，导致误报
   CalibrationState get calibrationState {
     if (!isFaceDetected) {
       return CalibrationState.noFace;
-    }
-    if (!isCorrect) {
-      return CalibrationState.badPosture;
     }
     if (!hasVisibleHands) {
       return CalibrationState.noHands;
@@ -163,5 +166,55 @@ extension CalibrationStateExtension on CalibrationState {
   }
 
   String get name => toString().split('.').last;
+}
+
+/// 握笔状态枚举
+enum GripState {
+  unknown,      // 未知状态
+  holdingPen,   // 正在握笔
+  noHand,       // 无手部可见
+  badGrip,      // 握笔姿势不佳（Sprint 6 实现）
+}
+
+/// 握笔状态扩展方法
+extension GripStateExtension on GripState {
+  String get message {
+    switch (this) {
+      case GripState.unknown:
+        return '检测中...';
+      case GripState.holdingPen:
+        return '握笔正确';
+      case GripState.noHand:
+        return '请亮出手部';
+      case GripState.badGrip:
+        return '请调整握笔方式';
+    }
+  }
+
+  String get icon {
+    switch (this) {
+      case GripState.unknown:
+        return '❓';
+      case GripState.holdingPen:
+        return '✍️';
+      case GripState.noHand:
+        return '🖐️';
+      case GripState.badGrip:
+        return '⚠️';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case GripState.unknown:
+        return Colors.grey;
+      case GripState.holdingPen:
+        return Colors.green;
+      case GripState.noHand:
+        return Colors.orange;
+      case GripState.badGrip:
+        return Colors.red;
+    }
+  }
 }
 
