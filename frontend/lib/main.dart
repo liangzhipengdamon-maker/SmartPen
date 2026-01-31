@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'providers/character_provider.dart';
 import 'providers/posture_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/photo_capture_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +56,10 @@ class SmartPenApp extends StatelessWidget {
         ),
         home: const HomeScreen(),
         debugShowCheckedModeBanner: false,
+        routes: {
+          '/': (context) => const HomeScreen(),
+          '/photo_capture': (context) => const PhotoCapturePage(),
+        },
       ),
     );
   }
