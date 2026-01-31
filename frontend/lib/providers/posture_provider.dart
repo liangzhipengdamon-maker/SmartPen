@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart' as camera;
@@ -24,12 +25,16 @@ class PostureProvider extends ChangeNotifier {
   StreamSubscription<List<Pose>>? _poseSubscription;
   CameraController? _cameraController;
 
+  // 当前相机图像尺寸
+  ui.Size? _currentImageSize;
+
   // Getters
   PostureAnalysis? get currentAnalysis => _currentAnalysis;
   List<Pose> get currentPoses => List.unmodifiable(_currentPoses);
   bool get isMonitoring => _isMonitoring;
   String? get errorMessage => _errorMessage;
   CameraController? get cameraController => _cameraController;
+  ui.Size? get currentImageSize => _currentImageSize;
 
   // 新增：校准状态访问器
   CalibrationState get calibrationState => _calibrationManager.currentState;
@@ -143,6 +148,9 @@ class PostureProvider extends ChangeNotifier {
   /// 处理相机帧
   Future<void> processCameraImage(camera.CameraImage image) async {
     if (!_isMonitoring) return;
+
+    // 记录当前图像尺寸
+    _currentImageSize = ui.Size(image.width.toDouble(), image.height.toDouble());
 
     try {
       // 获取相机描述用于旋转计算

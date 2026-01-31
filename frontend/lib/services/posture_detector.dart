@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import 'posture_data.dart';
+import 'grip_state.dart';
 
 /// 坐姿检测服务
 ///

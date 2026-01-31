@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'grip_state.dart';
+
 /// 坐姿分析结果
 class PostureAnalysis {
   final bool isCorrect;
@@ -167,54 +169,3 @@ extension CalibrationStateExtension on CalibrationState {
 
   String get name => toString().split('.').last;
 }
-
-/// 握笔状态枚举
-enum GripState {
-  unknown,      // 未知状态
-  holdingPen,   // 正在握笔
-  noHand,       // 无手部可见
-  badGrip,      // 握笔姿势不佳（Sprint 6 实现）
-}
-
-/// 握笔状态扩展方法
-extension GripStateExtension on GripState {
-  String get message {
-    switch (this) {
-      case GripState.unknown:
-        return '检测中...';
-      case GripState.holdingPen:
-        return '握笔正确';
-      case GripState.noHand:
-        return '请亮出手部';
-      case GripState.badGrip:
-        return '请调整握笔方式';
-    }
-  }
-
-  String get icon {
-    switch (this) {
-      case GripState.unknown:
-        return '❓';
-      case GripState.holdingPen:
-        return '✍️';
-      case GripState.noHand:
-        return '🖐️';
-      case GripState.badGrip:
-        return '⚠️';
-    }
-  }
-
-  Color get color {
-    switch (this) {
-      case GripState.unknown:
-        return Colors.grey;
-      case GripState.holdingPen:
-        return Colors.green;
-      case GripState.noHand:
-        return Colors.orange;
-      case GripState.badGrip:
-        return Colors.red;
-    }
-  }
-}
-

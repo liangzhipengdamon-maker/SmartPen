@@ -121,9 +121,9 @@ class CalibrationStateManager extends ChangeNotifier {
   /// 只有在 aligned 状态持续1秒后才真正启用按钮
   void _handleStabilityTimer(
       CalibrationState newState, PostureAnalysis analysis) {
-    // 检查是否满足核心二条件（姿态正确 + 有手部）
+    // 检查是否满足核心二条件（人脸检测 + 有手部）
     // 注意：在手部缓冲期内，认为手部存在
-    final hasGoodPosture = analysis.isCorrect;
+    final hasGoodPosture = analysis.isFaceDetected;  // 简化：只检查人脸
     final hasHand = analysis.hasVisibleHands || _isHandBufferActive;
 
     if (hasGoodPosture && hasHand) {
