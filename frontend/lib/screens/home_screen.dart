@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import '../widgets/character_display.dart';
 import '../widgets/writing_canvas_drawing.dart';
@@ -10,6 +11,7 @@ import '../widgets/score_panel.dart';
 import '../widgets/feedback_overlay.dart';
 import '../widgets/camera_preview.dart';
 import '../widgets/camera_permission_dialog.dart';
+import '../widgets/pose_painter.dart';
 import '../providers/character_provider.dart';
 import '../providers/posture_provider.dart';
 import '../services/posture_data.dart';
@@ -504,6 +506,28 @@ class _HomeScreenState extends State<HomeScreen> {
               if (postureProvider.cameraController?.controller != null)
                 CameraPreview(postureProvider.cameraController!.controller!),
 
+              // ========== 静态校准引导（虚线轮廓）==========
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: CalibrationGuidePainter(),
+                  ),
+                ),
+              ),
+
+              // ========== 动态姿态绘制器（ML Kit 检测点）==========
+              if (postureProvider.currentPoses.isNotEmpty)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: PosePainter(
+                        poses: postureProvider.currentPoses,
+                        imageSize: postureProvider.currentImageSize ?? const Size(640, 480),
+                      ),
+                    ),
+                  ),
+                ),
+
               // 顶部提示栏
               Positioned(
                 top: 0,
@@ -639,12 +663,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Positioned(
                   left: 16,
                   bottom: 50,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -674,10 +699,37 @@ class _HomeScreenState extends State<HomeScreen> {
                               fontFamily: 'monospace',
                             ),
                           ),
+                        // ========== 新增：显示 nose 坐标用于调试 ==========
+                        if (postureProvider.currentPoses.isNotEmpty)
+                          Builder(
+                            builder: (context) {
+                              final pose = postureProvider.currentPoses.first;
+                              final nose = pose.landmarks[PoseLandmarkType.nose];
+                              if (nose != null) {
+                                return Text(
+                                  'nose: (${nose.x.toStringAsFixed(2)}, ${nose.y.toStringAsFixed(2)})',
+                                  style: const TextStyle(
+                                    color: Colors.cyan,
+                                    fontSize: 10,
+                                    fontFamily: 'monospace',
+                                  ),
+                                );
+                              }
+                              return const Text(
+                                'nose: null',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 10,
+                                  fontFamily: 'monospace',
+                                ),
+                              );
+                            },
+                          ),
                       ],
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         );
