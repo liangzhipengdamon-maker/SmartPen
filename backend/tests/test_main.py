@@ -143,3 +143,77 @@ class TestCharacterEndpoints:
             data = response.json()
             assert data["character"] == "𠮷"
             assert data["available"] is False
+
+
+class TestScoringEndpoints:
+    """Test scoring endpoints"""
+
+    @pytest.fixture
+    def mock_two_stroke_character(self):
+        """Mock character data with two strokes"""
+        from app.models.character import StrokePath, StrokeMedian, MedianPoint
+
+        return CharacterData(
+            character="永",
+            source=CharacterSource.HANZI_WRITER,
+            strokes=[
+                StrokePath(path="M 300 100 Q 400 200 500 300", stroke_order=0),
+                StrokePath(path="M 100 300 Q 200 400 300 500", stroke_order=1),
+            ],
+            medians=[
+                StrokeMedian(
+                    points=[MedianPoint(x=0.1, y=0.1), MedianPoint(x=0.2, y=0.2)],
+                    stroke_order=0
+                ),
+                StrokeMedian(
+                    points=[MedianPoint(x=0.3, y=0.3), MedianPoint(x=0.4, y=0.4)],
+                    stroke_order=1
+                ),
+            ]
+        )
+
+    @pytest.mark.asyncio
+    async def test_score_comprehensive_stroke_count_mismatch(self, client, mock_two_stroke_character):
+        """Stroke count mismatch should return '笔顺错误' and skip DTW"""
+        with patch("app.api.scoring._loader.load_character") as mock_load, \
+                patch("app.api.scoring.calculate_dtw_distance") as mock_dtw:
+            mock_load.return_value = mock_two_stroke_character
+            mock_dtw.side_effect = AssertionError("DTW should not be called on stroke mismatch")
+
+            payload = {
+                "character": "永",
+                "user_strokes": [
+                    [(0.1, 0.1), (0.2, 0.2)],  # Only 1 stroke
+                ],
+                "posture_data": None,
+            }
+
+            response = client.post("/api/score/comprehensive", json=payload)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["feedback"] == "笔顺错误"
+            assert data.get("error_type") == "stroke_count_mismatch"
+            assert data["total_score"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_score_comprehensive_stroke_count_match(self, client, mock_two_stroke_character):
+        """Stroke count match should proceed to scoring"""
+        with patch("app.api.scoring._loader.load_character") as mock_load, \
+                patch("app.api.scoring.calculate_dtw_distance") as mock_dtw:
+            mock_load.return_value = mock_two_stroke_character
+            mock_dtw.return_value = 0.0
+
+            payload = {
+                "character": "永",
+                "user_strokes": [
+                    [(0.1, 0.1), (0.2, 0.2)],
+                    [(0.3, 0.3), (0.4, 0.4)],
+                ],
+                "posture_data": None,
+            }
+
+            response = client.post("/api/score/comprehensive", json=payload)
+            assert response.status_code == 200
+            data = response.json()
+            assert data["feedback"] != "笔顺错误"
+            assert data.get("error_type") is None

@@ -16,6 +16,7 @@ class PostureAnalysis {
   final bool hasVisibleHands;  // 是否检测到手部
   final bool isFaceDetected;   // 是否检测到人脸
   final GripState gripState;   // 握笔状态
+  final bool alignmentOk;      // 对齐状态（占位）
 
   PostureAnalysis({
     required this.isCorrect,
@@ -29,6 +30,7 @@ class PostureAnalysis {
     this.hasVisibleHands = false,  // 新增，默认 false
     this.isFaceDetected = false,   // 新增，默认 false
     this.gripState = GripState.unknown,  // 新增，默认 unknown
+    this.alignmentOk = false,  // 新增，占位默认 false
   });
 
   @override
@@ -39,7 +41,8 @@ class PostureAnalysis {
         'correct: $isCorrect, '
         'hands: $hasVisibleHands, '
         'face: $isFaceDetected, '
-        'grip: $gripState)';
+        'grip: $gripState, '
+        'alignmentOk: $alignmentOk)';
   }
 
   /// 获取主要问题
@@ -94,11 +97,20 @@ class PostureAnalysis {
     if (!hasVisibleHands) {
       return CalibrationState.noHands;
     }
+    if (!alignmentOk) {
+      return CalibrationState.misaligned;
+    }
+    if (_kEnablePostureGate && !isCorrect) {
+      return CalibrationState.badPosture;
+    }
     return CalibrationState.aligned;
   }
 
   static const double minEyeScreenDistance = 30.0;
 }
+
+// Sprint 5: gate only on face + hands + alignment.
+const bool _kEnablePostureGate = false;
 
 /// 坐姿警告级别
 enum PostureWarningLevel {
@@ -117,6 +129,7 @@ class PostureDetector {
 /// 校准状态枚举
 enum CalibrationState {
   noFace,      // 无人脸 - 红色
+  misaligned,  // 未对齐 - 橙色
   badPosture,  // 姿态不佳 - 橙色
   noHands,     // 无手部 - 橙色
   aligned,     // 对齐完成 - 绿色
@@ -128,8 +141,10 @@ extension CalibrationStateExtension on CalibrationState {
     switch (this) {
       case CalibrationState.noFace:
         return 'No face detected';
+      case CalibrationState.misaligned:
+        return '请把头放在圆圈中心';
       case CalibrationState.badPosture:
-        return 'Sit up straight';
+        return '请坐正';
       case CalibrationState.noHands:
         return 'Show your hand';
       case CalibrationState.aligned:
@@ -141,6 +156,8 @@ extension CalibrationStateExtension on CalibrationState {
     switch (this) {
       case CalibrationState.noFace:
         return '请坐正';
+      case CalibrationState.misaligned:
+        return '请对齐';
       case CalibrationState.badPosture:
         return '请坐正';
       case CalibrationState.noHands:
@@ -154,6 +171,8 @@ extension CalibrationStateExtension on CalibrationState {
     switch (this) {
       case CalibrationState.noFace:
         return Colors.red;
+      case CalibrationState.misaligned:
+        return Colors.orange;
       case CalibrationState.badPosture:
         return Colors.orange;
       case CalibrationState.noHands:

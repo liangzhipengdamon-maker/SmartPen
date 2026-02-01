@@ -51,6 +51,12 @@ class AiTutorDashboard extends StatelessWidget {
                     isGood: analysis.gripState == GripState.holdingPen,
                     customColor: analysis.gripState.color,
                   ),
+                  const SizedBox(width: 8),
+                  _buildStatusCapsule(
+                    icon: '🎯',
+                    label: '对齐',
+                    isGood: analysis.alignmentOk,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),

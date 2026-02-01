@@ -337,6 +337,8 @@ GET    /api/user-progress/leaderboard        # 排行榜
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
+> TODO: `/api/score/from_photo` 依赖 InkSight 实际模型与 Pillow 图像解码；模型不可用或轨迹无法提取时返回 `no_strokes_detected`。
+
 ---
 
 ## 移动端使用

@@ -121,19 +121,24 @@ class CalibrationStateManager extends ChangeNotifier {
   /// 只有在 aligned 状态持续1秒后才真正启用按钮
   void _handleStabilityTimer(
       CalibrationState newState, PostureAnalysis analysis) {
-    // 检查是否满足核心二条件（人脸检测 + 有手部）
-    // 注意：在手部缓冲期内，认为手部存在
-    final hasGoodPosture = analysis.isFaceDetected;  // 简化：只检查人脸
+    // 仅在 aligned 且满足稳定 1 秒时放行
+    final hasFace = analysis.isFaceDetected;
     final hasHand = analysis.hasVisibleHands || _isHandBufferActive;
+    final hasAlignment = analysis.alignmentOk;
+    final postureOk = analysis.isCorrect;
 
-    if (hasGoodPosture && hasHand) {
+    debugPrint('🧪 Gate flags: face=$hasFace hand=$hasHand '
+        'alignment=$hasAlignment posture=$postureOk state=$newState');
+
+    if (newState == CalibrationState.aligned) {
       // 满足条件，启动或继续计时
       if (_stabilityTimer == null || !_stabilityTimer!.isActive) {
         debugPrint('⏱️  Starting stability timer...');
         _stabilityTimer?.cancel();
+        final stableTarget = newState;
         _stabilityTimer = Timer(_stabilityThreshold, () {
           debugPrint('✅ Stability threshold reached!');
-          _lastStableState = CalibrationState.aligned;
+          _lastStableState = stableTarget;
           notifyListeners();
         });
       }

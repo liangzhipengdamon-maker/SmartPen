@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
@@ -15,6 +16,14 @@ import 'grip_state.dart';
 /// - 人脸检测
 /// - 手部检测（含书写区域判定）
 class PostureDetector {
+  static String _fmtLandmark(PoseLandmark? lm, ui.Size imageSize) {
+    if (lm == null) return 'null';
+    final nx = lm.x / imageSize.width;
+    final ny = lm.y / imageSize.height;
+    return '(${lm.x.toStringAsFixed(1)},${lm.y.toStringAsFixed(1)})'
+        ' n=(${nx.toStringAsFixed(3)},${ny.toStringAsFixed(3)})'
+        ' p=${lm.likelihood.toStringAsFixed(2)}';
+  }
   /// 坐姿检测阈值
   static const double minEyeScreenDistance = 30.0; // cm
   static const double maxSpineAngle = 15.0; // degrees
@@ -23,7 +32,7 @@ class PostureDetector {
   /// 分析姿态数据
   ///
   /// 返回坐姿分析结果
-  static PostureAnalysis analyzePose(Pose pose) {
+  static PostureAnalysis analyzePose(Pose pose, {required ui.Size imageSize}) {
     // 计算各项指标
     final spineAngle = _calculateSpineAngle(pose);
     final eyeScreenDistance = _estimateEyeScreenDistance(pose);
@@ -47,9 +56,27 @@ class PostureDetector {
           'isCorrect=$isCorrect');
     }
 
+    if (!isCorrect) {
+      debugPrint(
+        '⚠️  Posture gate: spine=$spineAngle/$maxSpineAngle ok=$isSpineCorrect, '
+        'distance=$eyeScreenDistance/$minEyeScreenDistance ok=$isDistanceCorrect, '
+        'tilt=$headTilt/$maxHeadTilt ok=$isHeadCorrect',
+      );
+      debugPrint(
+        '⚠️  Landmarks: '
+        'leftShoulder=${_fmtLandmark(pose.landmarks[PoseLandmarkType.leftShoulder], imageSize)} '
+        'rightShoulder=${_fmtLandmark(pose.landmarks[PoseLandmarkType.rightShoulder], imageSize)} '
+        'leftEye=${_fmtLandmark(pose.landmarks[PoseLandmarkType.leftEye], imageSize)} '
+        'rightEye=${_fmtLandmark(pose.landmarks[PoseLandmarkType.rightEye], imageSize)} '
+        'leftEar=${_fmtLandmark(pose.landmarks[PoseLandmarkType.leftEar], imageSize)} '
+        'rightEar=${_fmtLandmark(pose.landmarks[PoseLandmarkType.rightEar], imageSize)}',
+      );
+    }
+
     // 人脸和手部检测
-    final isFaceDetected = _hasFaceDetected(pose);
-    final hasVisibleHands = _hasVisibleHands(pose);
+    final isFaceDetected = _hasFaceDetected(pose, imageSize);
+    final hasVisibleHands = _hasVisibleHands(pose, imageSize);
+    final alignmentOk = _isAligned(pose, imageSize);
 
     // 握笔状态检测
     final gripState = _detectGripState(pose);
@@ -70,6 +97,7 @@ class PostureDetector {
       hasVisibleHands: hasVisibleHands,
       isFaceDetected: isFaceDetected,
       gripState: gripState,  // 新增
+      alignmentOk: alignmentOk,  // 占位：对齐检测
     );
   }
 
@@ -152,7 +180,7 @@ class PostureDetector {
   /// 用户要求 #1: 手部区域判定
   /// - Y 轴阈值：wrist.y > 0.6（屏幕下方为书写区域）
   /// - 置信度阈值：0.5
-  static bool _hasVisibleHands(Pose pose) {
+  static bool _hasVisibleHands(Pose pose, ui.Size imageSize) {
     final leftWrist = pose.landmarks[PoseLandmarkType.leftWrist];
     final rightWrist = pose.landmarks[PoseLandmarkType.rightWrist];
 
@@ -165,14 +193,16 @@ class PostureDetector {
     const writingAreaYThreshold = 0.6;
 
     // 检查左手腕
+    final leftNy = leftWrist != null ? leftWrist.y / imageSize.height : null;
     final leftValid = leftWrist != null &&
         leftWrist.likelihood > minConfidence &&
-        leftWrist.y > writingAreaYThreshold;
+        (leftNy != null && leftNy > writingAreaYThreshold);
 
     // 检查右手腕
+    final rightNy = rightWrist != null ? rightWrist.y / imageSize.height : null;
     final rightValid = rightWrist != null &&
         rightWrist.likelihood > minConfidence &&
-        rightWrist.y > writingAreaYThreshold;
+        (rightNy != null && rightNy > writingAreaYThreshold);
 
     final hasHands = leftValid || rightValid;
 
@@ -180,8 +210,8 @@ class PostureDetector {
     final frameCount = DateTime.now().millisecondsSinceEpoch ~/ 100;
     if (frameCount % 30 == 0) {
       debugPrint('🤝 Hand Detection: '
-          'leftWrist: conf=${leftWrist?.likelihood.toStringAsFixed(3)}, y=${leftWrist?.y.toStringAsFixed(3)}, valid=$leftValid; '
-          'rightWrist: conf=${rightWrist?.likelihood.toStringAsFixed(3)}, y=${rightWrist?.y.toStringAsFixed(3)}, valid=$rightValid; '
+          'leftWrist: conf=${leftWrist?.likelihood.toStringAsFixed(3)}, y=${leftNy?.toStringAsFixed(3)}, valid=$leftValid; '
+          'rightWrist: conf=${rightWrist?.likelihood.toStringAsFixed(3)}, y=${rightNy?.toStringAsFixed(3)}, valid=$rightValid; '
           'hasHands=$hasHands');
     }
 
@@ -192,15 +222,88 @@ class PostureDetector {
   ///
   /// 通过检查 nose landmark 判断
   /// 人脸检测使用简化方法（不依赖 Face Detection API）
-  static bool _hasFaceDetected(Pose pose) {
+  static bool _hasFaceDetected(Pose pose, ui.Size imageSize) {
     final nose = pose.landmarks[PoseLandmarkType.nose];
 
     // nose landmark 存在且置信度足够高
     final hasFace = nose != null && nose.likelihood > 0.3;
 
-    debugPrint('👤 Face detection: hasFace=$hasFace (${nose?.likelihood.toStringAsFixed(2)})');
+    final noseNx = nose != null ? nose.x / imageSize.width : null;
+    final noseNy = nose != null ? nose.y / imageSize.height : null;
+    debugPrint('👤 Face detection: hasFace=$hasFace '
+        '(${nose?.likelihood.toStringAsFixed(2)}) '
+        'nose=(${noseNx?.toStringAsFixed(3)},${noseNy?.toStringAsFixed(3)})');
 
     return hasFace;
+  }
+
+  /// 占位：对齐检测（placeholder for alignment）
+  ///
+  /// 使用鼻子位置是否接近画面水平中心进行粗略判断，
+  /// 可替换为更稳定的多点对齐算法（如鼻子与肩中点偏移）。
+  static bool _isAligned(Pose pose, ui.Size imageSize) {
+    final nose = pose.landmarks[PoseLandmarkType.nose];
+    final leftShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
+    final rightShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
+
+    // 占位阈值：允许 25% 的水平偏移（放宽，提升通过率）
+    const centerX = 0.5;
+    const centerY = 0.5;
+    const maxHorizontalOffset = 0.25;
+
+    if (nose == null) {
+      debugPrint(
+        '🎯 Align debug: '
+        'nose=null leftShoulder=${_fmtLandmark(leftShoulder, imageSize)} rightShoulder=${_fmtLandmark(rightShoulder, imageSize)} '
+        'faceCenter=(n/a) targetCenter=($centerX,$centerY) '
+        'dx=n/a dy=n/a dist=n/a threshold=$maxHorizontalOffset aligned=true',
+      );
+      return true;
+    }
+
+    // 使用鼻子或肩中点作为对齐参考
+    if (leftShoulder == null || rightShoulder == null) {
+      final nx = nose.x / imageSize.width;
+      final ny = nose.y / imageSize.height;
+      debugPrint(
+        '🎯 Align debug: '
+        'nose=${_fmtLandmark(nose, imageSize)} leftShoulder=${_fmtLandmark(leftShoulder, imageSize)} rightShoulder=${_fmtLandmark(rightShoulder, imageSize)} '
+        'faceCenter=(${nx.toStringAsFixed(3)},${ny.toStringAsFixed(3)}) targetCenter=($centerX,$centerY) '
+        'dx=${(nx - centerX).abs().toStringAsFixed(3)} dy=${(ny - centerY).abs().toStringAsFixed(3)} '
+        'dist=n/a threshold=$maxHorizontalOffset aligned=true',
+      );
+      return true;
+    }
+
+    final noseNx = nose.x / imageSize.width;
+    final noseNy = nose.y / imageSize.height;
+    final leftNx = leftShoulder.x / imageSize.width;
+    final leftNy = leftShoulder.y / imageSize.height;
+    final rightNx = rightShoulder.x / imageSize.width;
+    final rightNy = rightShoulder.y / imageSize.height;
+
+    final shoulderCenterX = (leftNx + rightNx) / 2;
+    final shoulderCenterY = (leftNy + rightNy) / 2;
+    final faceCenterX = (noseNx + shoulderCenterX) / 2;
+    final faceCenterY = (noseNy + shoulderCenterY) / 2;
+
+    final dx = (noseNx - centerX).abs();
+    final dy = (noseNy - centerY).abs();
+    final distance = math.sqrt(dx * dx + dy * dy);
+
+    final offset = (noseNx - centerX).abs();
+    final shoulderOffset = (shoulderCenterX - centerX).abs();
+    final alignmentOk = offset <= maxHorizontalOffset && shoulderOffset <= maxHorizontalOffset;
+
+    debugPrint(
+      '🎯 Align debug: '
+      'nose=${_fmtLandmark(nose, imageSize)} leftShoulder=${_fmtLandmark(leftShoulder, imageSize)} rightShoulder=${_fmtLandmark(rightShoulder, imageSize)} '
+      'faceCenter=(${faceCenterX.toStringAsFixed(3)},${faceCenterY.toStringAsFixed(3)}) targetCenter=($centerX,$centerY) '
+      'dx=${dx.toStringAsFixed(3)} dy=${dy.toStringAsFixed(3)} dist=${distance.toStringAsFixed(3)} '
+      'threshold=$maxHorizontalOffset aligned=$alignmentOk',
+    );
+
+    return alignmentOk;
   }
 
   /// 检测握笔状态（Sprint 5 占位实现）

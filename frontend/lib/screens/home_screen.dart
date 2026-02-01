@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -7,7 +8,6 @@ import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 
 import '../widgets/character_display.dart';
 import '../widgets/score_panel.dart';
-import '../widgets/feedback_overlay.dart';
 import '../widgets/camera_preview.dart';
 import '../widgets/camera_permission_dialog.dart';
 import '../widgets/pose_painter.dart';
@@ -78,6 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (state) {
       case CalibrationState.noFace:
         return Icons.face_outlined;
+      case CalibrationState.misaligned:
+        return Icons.center_focus_strong;
       case CalibrationState.badPosture:
         return Icons.accessibility_new;
       case CalibrationState.noHands:
@@ -85,6 +87,35 @@ class _HomeScreenState extends State<HomeScreen> {
       case CalibrationState.aligned:
         return Icons.check_circle;
     }
+  }
+
+  CalibrationViewState _buildCalibrationViewState(PostureProvider postureProvider) {
+    final analysis = postureProvider.currentAnalysis;
+    final hasFace = analysis?.isFaceDetected ?? false;
+    final alignmentOk = analysis?.alignmentOk ?? false;
+    final realtimeState = postureProvider.calibrationState;
+    final stableState = postureProvider.stableCalibrationState;
+    final isReady = postureProvider.isReadyForPractice;
+
+    String message;
+    if (isReady) {
+      message = 'Perfect';
+    } else if (!hasFace) {
+      message = '请把面部放在此处';
+    } else if (!alignmentOk) {
+      message = '请把头放在圆圈中心';
+    } else {
+      message = '请保持姿态';
+    }
+
+    return CalibrationViewState(
+      realtimeState: realtimeState,
+      stableState: stableState,
+      hasFace: hasFace,
+      alignmentOk: alignmentOk,
+      isReady: isReady,
+      message: message,
+    );
   }
 
   @override
@@ -445,10 +476,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildCalibrationInterface() {
     return Consumer<PostureProvider>(
       builder: (context, postureProvider, child) {
-        final calibrationState = postureProvider.calibrationState;
-        final message = postureProvider.calibrationMessage;
+        final viewState = _buildCalibrationViewState(postureProvider);
+        final calibrationState = viewState.realtimeState;
+        final message = viewState.message;
         final color = postureProvider.calibrationColor;
-        final isReady = postureProvider.isReadyForPractice;
+        final isReady = viewState.isReady;
         final buttonLabel = calibrationState.buttonLabel;  // 用户要求 #2：动态按钮文案
 
         debugPrint('🎨 UI: state=$calibrationState, color=$color, ready=$isReady, button=$buttonLabel');
@@ -465,7 +497,9 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
-                    painter: CalibrationGuidePainter(),
+                    painter: CalibrationGuidePainter(
+                      calibrationState: postureProvider.calibrationState,
+                    ),
                   ),
                 ),
               ),
@@ -500,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  child: const Column(
+                  child: Column(
                     children: [
                       Text(
                         '姿态校准',
@@ -512,8 +546,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        '请调整坐姿，保持头部在画面中央',
-                        style: TextStyle(color: Colors.white70),
+                        message,
+                        style: const TextStyle(color: Colors.white70),
                       ),
                     ],
                   ),
@@ -629,7 +663,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'State: $calibrationState',
+                          'State: $calibrationState (stable=${viewState.stableState})',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -647,7 +681,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (postureProvider.currentAnalysis != null)
                           Text(
                             'Hands: ${postureProvider.currentAnalysis!.hasVisibleHands}, '
-                            'Face: ${postureProvider.currentAnalysis!.isFaceDetected}',
+                            'Face: ${viewState.hasFace}, '
+                            'Align: ${viewState.alignmentOk}',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 10,
@@ -660,14 +695,39 @@ class _HomeScreenState extends State<HomeScreen> {
                             builder: (context) {
                               final pose = postureProvider.currentPoses.first;
                               final nose = pose.landmarks[PoseLandmarkType.nose];
+                              final imageSize = postureProvider.currentImageSize ?? const Size(640, 480);
+                              const centerX = 0.5;
+                              const centerY = 0.5;
+                              const threshold = 0.25;
+
                               if (nose != null) {
-                                return Text(
-                                  'nose: (${nose.x.toStringAsFixed(2)}, ${nose.y.toStringAsFixed(2)})',
-                                  style: const TextStyle(
-                                    color: Colors.cyan,
-                                    fontSize: 10,
-                                    fontFamily: 'monospace',
-                                  ),
+                                final nx = nose.x / imageSize.width;
+                                final ny = nose.y / imageSize.height;
+                                final dx = (nx - centerX).abs();
+                                final dy = (ny - centerY).abs();
+                                final distance = math.sqrt(dx * dx + dy * dy);
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'nose: (${nose.x.toStringAsFixed(1)}, ${nose.y.toStringAsFixed(1)}) '
+                                      'n=(${nx.toStringAsFixed(3)}, ${ny.toStringAsFixed(3)}) '
+                                      'size=(${imageSize.width.toStringAsFixed(0)},${imageSize.height.toStringAsFixed(0)})',
+                                      style: const TextStyle(
+                                        color: Colors.cyan,
+                                        fontSize: 10,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                    Text(
+                                      'alignDist: ${distance.toStringAsFixed(3)} thr: $threshold',
+                                      style: const TextStyle(
+                                        color: Colors.cyan,
+                                        fontSize: 10,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
                                 );
                               }
                               return const Text(
@@ -691,4 +751,22 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
+}
+
+class CalibrationViewState {
+  final CalibrationState realtimeState;
+  final CalibrationState stableState;
+  final bool hasFace;
+  final bool alignmentOk;
+  final bool isReady;
+  final String message;
+
+  CalibrationViewState({
+    required this.realtimeState,
+    required this.stableState,
+    required this.hasFace,
+    required this.alignmentOk,
+    required this.isReady,
+    required this.message,
+  });
 }

@@ -98,6 +98,8 @@ class ComprehensiveScoreResult {
   final List<StrokeAnalysisResult> strokeAnalysis; // 各笔画分析
   final ApiPostureAnalysis? postureAnalysis; // 姿态分析 (API 模型)
   final String feedback; // 综合反馈
+  final String? errorType; // 错误类型（可选）
+  final String? message; // 错误信息（可选）
 
   ComprehensiveScoreResult({
     required this.totalScore,
@@ -107,6 +109,8 @@ class ComprehensiveScoreResult {
     required this.strokeAnalysis,
     this.postureAnalysis,
     required this.feedback,
+    this.errorType,
+    this.message,
   });
 
   factory ComprehensiveScoreResult.fromJson(Map<String, dynamic> json) {
@@ -123,6 +127,8 @@ class ComprehensiveScoreResult {
           ? ApiPostureAnalysis.fromJson(json['posture_analysis'])
           : null,
       feedback: json['feedback'] ?? '',
+      errorType: json['error_type'],
+      message: json['message'],
     );
   }
 

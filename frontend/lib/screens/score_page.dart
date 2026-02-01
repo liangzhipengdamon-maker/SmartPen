@@ -1,16 +1,22 @@
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:dio/dio.dart';
+
+import '../api/scoring_api.dart';
 import '../models/character.dart';
+import '../models/comprehensive_score.dart';
 
 /// 评分页面 - 双模式显示
 class ScorePage extends StatefulWidget {
-  final String imagePath;
+  final XFile photo;
   final CharacterData character;
 
   const ScorePage({
     super.key,
-    required this.imagePath,
+    required this.photo,
     required this.character,
   });
 
@@ -21,23 +27,58 @@ class ScorePage extends StatefulWidget {
 class _ScorePageState extends State<ScorePage> {
   bool _isOverlayMode = true;
   double _overlayOpacity = 0.5;
-  ScoreResult? _mockScore;
+  ComprehensiveScoreResult? _score;
+  bool _isLoading = true;
+  String? _errorMessage;
+  String? _errorType;
 
   @override
   void initState() {
     super.initState();
-    _generateMockScore();
+    _scoreFromPhoto();
   }
 
-  void _generateMockScore() {
-    final random = DateTime.now().millisecondsSinceEpoch % 30;
-    _mockScore = ScoreResult(
-      totalScore: 70.0 + random.toDouble(),
-      strokeCount: widget.character.strokeCount ?? widget.character.strokes.length,
-      perfectStrokes: (widget.character.strokes.length * 0.7).toInt(),
-      averageScore: 75.0 + (random / 2),
-      feedback: '整体结构良好，注意笔画顺序',
-    );
+  Future<void> _scoreFromPhoto() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _errorType = null;
+    });
+
+    try {
+      final api = ScoringApi();
+      final result = await api.scoreFromPhoto(
+        character: widget.character.character,
+        photo: widget.photo,
+      );
+
+      setState(() {
+        _score = result;
+        _errorType = result.errorType;
+        _errorMessage = null;
+        _isLoading = false;
+      });
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['detail'] is Map) {
+        final detail = data['detail'] as Map;
+        setState(() {
+          _errorType = detail['error_type']?.toString();
+          _errorMessage = detail['message']?.toString() ?? '无法评分';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = '无法评分：${e.message}';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = '无法评分：$e';
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -63,6 +104,12 @@ class _ScorePageState extends State<ScorePage> {
 
   /// Overlay 模式 - 数字描红台
   Widget _buildOverlayMode() {
+    if (_isLoading) {
+      return _buildLoading();
+    }
+    if (_errorMessage != null) {
+      return _buildError();
+    }
     return Column(
       children: [
         _buildOpacitySlider(),
@@ -72,7 +119,7 @@ class _ScorePageState extends State<ScorePage> {
               // Layer 1: 用户照片
               Positioned.fill(
                 child: Image.file(
-                  File(widget.imagePath),
+                  File(widget.photo.path),
                   fit: BoxFit.contain,
                 ),
               ),
@@ -98,8 +145,11 @@ class _ScorePageState extends State<ScorePage> {
 
   /// Report 模式 - 传统报告视图
   Widget _buildReportMode() {
-    if (_mockScore == null) {
-      return const Center(child: CircularProgressIndicator());
+    if (_isLoading) {
+      return _buildLoading();
+    }
+    if (_errorMessage != null) {
+      return _buildError();
     }
 
     return SingleChildScrollView(
@@ -117,7 +167,7 @@ class _ScorePageState extends State<ScorePage> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.file(
-                File(widget.imagePath),
+                File(widget.photo.path),
                 fit: BoxFit.contain,
               ),
             ),
@@ -161,7 +211,7 @@ class _ScorePageState extends State<ScorePage> {
 
   /// 底部评分摘要
   Widget _buildScoreSummary() {
-    if (_mockScore == null) return const SizedBox.shrink();
+    if (_score == null) return const SizedBox.shrink();
 
     return Container(
       padding: const EdgeInsets.all(16.0),
@@ -169,9 +219,9 @@ class _ScorePageState extends State<ScorePage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildScoreItem('总分', '${_mockScore!.totalScore.toStringAsFixed(0)}分', _mockScore!.gradeColor),
-          _buildScoreItem('等级', _mockScore!.grade, _mockScore!.gradeColor),
-          _buildScoreItem('完美笔画', '${_mockScore!.perfectStrokes}/${_mockScore!.strokeCount}', Colors.blue),
+          _buildScoreItem('总分', '${_score!.totalScore.toStringAsFixed(0)}分', _score!.gradeColor),
+          _buildScoreItem('等级', _score!.grade, _score!.gradeColor),
+          _buildScoreItem('完美笔画', '${_score!.perfectStrokes}/${_score!.strokeAnalysis.length}', Colors.blue),
         ],
       ),
     );
@@ -189,7 +239,7 @@ class _ScorePageState extends State<ScorePage> {
 
   /// 评分卡片
   Widget _buildScoreCard() {
-    if (_mockScore == null) return const SizedBox.shrink();
+    if (_score == null) return const SizedBox.shrink();
 
     return Card(
       elevation: 4,
@@ -205,29 +255,87 @@ class _ScorePageState extends State<ScorePage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _mockScore!.gradeColor,
+                    color: _score!.gradeColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '${_mockScore!.totalScore.toStringAsFixed(0)}分',
+                    '${_score!.totalScore.toStringAsFixed(0)}分',
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
             const Divider(height: 24),
-            _buildScoreRow('等级', _mockScore!.grade, _mockScore!.gradeColor),
-            _buildScoreRow('笔画数', '${_mockScore!.strokeCount} 笔', Colors.grey),
-            _buildScoreRow('完美笔画', '${_mockScore!.perfectStrokes} 笔', Colors.green),
-            _buildScoreRow('平均得分', '${_mockScore!.averageScore.toStringAsFixed(1)}分', Colors.blue),
-            if (_mockScore!.feedback != null) ...[
+            _buildScoreRow('等级', _score!.grade, _score!.gradeColor),
+            _buildScoreRow('笔画数', '${_score!.strokeAnalysis.length} 笔', Colors.grey),
+            _buildScoreRow('完美笔画', '${_score!.perfectStrokes} 笔', Colors.green),
+            _buildScoreRow('书写得分', '${_score!.handwritingScore.toStringAsFixed(1)}分', Colors.blue),
+            if (_score!.errorType != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                '无法评分：${_score!.message ?? _score!.feedback}',
+                style: const TextStyle(color: Colors.red),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'error_type: ${_score!.errorType}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+            if (_score!.feedback.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text('评语', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(_mockScore!.feedback!),
+              Text(_score!.feedback),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 12),
+          Text('评分中...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    final message = _errorMessage ?? '无法评分';
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.error, color: Colors.red, size: 48),
+          const SizedBox(height: 12),
+          Text('无法评分：$message', textAlign: TextAlign.center),
+          if (_errorType != null) ...[
+            const SizedBox(height: 8),
+            Text('error_type: $_errorType', style: const TextStyle(color: Colors.grey)),
+          ],
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: _scoreFromPhoto,
+                child: const Text('重试'),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('返回'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -252,6 +360,9 @@ class _RedCharacterPainter extends CustomPainter {
 
   _RedCharacterPainter({required this.strokes});
 
+  static const bool _flipX = false;
+  static const bool _flipY = true;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -261,11 +372,45 @@ class _RedCharacterPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
+    canvas.save();
+    _applyAxisFlip(canvas, size);
+
     for (final stroke in strokes) {
       final path = _parseSvgPath(stroke.path, size);
       if (path != null) {
         canvas.drawPath(path, paint);
       }
+    }
+
+    if (kDebugMode) {
+      _drawDebugCorners(canvas, size);
+    }
+
+    canvas.restore();
+  }
+
+  void _applyAxisFlip(Canvas canvas, Size size) {
+    final scaleX = _flipX ? -1.0 : 1.0;
+    final scaleY = _flipY ? -1.0 : 1.0;
+    final translateX = _flipX ? size.width : 0.0;
+    final translateY = _flipY ? size.height : 0.0;
+    canvas.translate(translateX, translateY);
+    canvas.scale(scaleX, scaleY);
+  }
+
+  void _drawDebugCorners(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.yellow
+      ..style = PaintingStyle.fill;
+    const r = 6.0;
+    final points = <Offset>[
+      const Offset(0, 0),
+      Offset(size.width, 0),
+      Offset(0, size.height),
+      Offset(size.width, size.height),
+    ];
+    for (final p in points) {
+      canvas.drawCircle(p, r, paint);
     }
   }
 

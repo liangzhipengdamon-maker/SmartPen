@@ -1,3 +1,4 @@
+// DEPRECATED: realtime AR overlay disabled per PRD v2.2
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

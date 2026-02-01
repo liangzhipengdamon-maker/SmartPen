@@ -40,7 +40,7 @@ class _PhotoCapturePageState extends State<PhotoCapturePage> {
             context,
             MaterialPageRoute(
               builder: (context) => ScorePage(
-                imagePath: photo.path,
+                photo: photo,
                 character: currentCharacter,
               ),
             ),

@@ -29,7 +29,8 @@ class HanziWriterLoader:
     }
     """
 
-    CDN_URL = "https://fastly.jsdelivr.net/npm/hanzi-writer-data@2.0.1/"
+    CDN_URL = "https://cdn.jsdelivr.net/npm/hanzi-writer-data@latest/"
+
 
     def __init__(self, timeout: float = 10.0):
         """
@@ -50,7 +51,9 @@ class HanziWriterLoader:
         Returns:
             Full CDN URL
         """
-        return f"{self.CDN_URL}{char}.json"
+        url = f"{self.CDN_URL}{char}.json"
+        logger.debug("HanziWriter CDN URL: %s", url)
+        return url
 
     async def load_character(self, char: str) -> CharacterData:
         """

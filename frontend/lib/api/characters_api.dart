@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../config/api_config.dart';
 import '../models/character.dart';
 
 /// 字符 API 客户端
@@ -9,9 +10,9 @@ class CharactersApi {
   CharactersApi({
     String? baseUrl,
     Dio? dio,
-  })  : baseUrl = baseUrl ?? 'http://192.168.101.12:8000',
+  })  : baseUrl = baseUrl ?? kBackendBaseUrl,
         _dio = dio ?? Dio(BaseOptions(
-          baseUrl: baseUrl ?? 'http://192.168.101.12:8000',
+          baseUrl: baseUrl ?? kBackendBaseUrl,
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 30),
         )) {

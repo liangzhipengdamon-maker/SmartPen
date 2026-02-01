@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import '../services/posture_data.dart';
 
 /// 姿态绘制器 - 在相机预览上绘制 ML Kit 检测到的关键点
 ///
@@ -274,6 +275,12 @@ class PosePainter extends CustomPainter {
 
 /// 校准引导绘制器 - 绘制静态引导轮廓
 class CalibrationGuidePainter extends CustomPainter {
+  final CalibrationState calibrationState;
+
+  CalibrationGuidePainter({
+    required this.calibrationState,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -301,8 +308,11 @@ class CalibrationGuidePainter extends CustomPainter {
       dashedPaint,
     );
 
-    // 绘制"人脸"标签
-    _drawLabel(canvas, faceCenter, '请将面部放在此处', size);
+    // 绘制"人脸"标签（与状态源一致）
+    final faceLabel = _getFaceLabel(calibrationState);
+    if (faceLabel.isNotEmpty) {
+      _drawLabel(canvas, faceCenter, faceLabel, size);
+    }
 
     // ========== 2. 手部区域引导（底部矩形）==========
     final handAreaY = size.height * 0.6;  // y > 0.6 为书写区域
@@ -385,6 +395,21 @@ class CalibrationGuidePainter extends CustomPainter {
     );
   }
 
+  String _getFaceLabel(CalibrationState state) {
+    switch (state) {
+      case CalibrationState.noFace:
+        return '请将面部放在此处';
+      case CalibrationState.misaligned:
+        return '请把头放在圆圈中心';
+      case CalibrationState.badPosture:
+      case CalibrationState.noHands:
+      case CalibrationState.aligned:
+        return '';
+    }
+  }
+
   @override
-  bool shouldRepaint(CalibrationGuidePainter oldDelegate) => false;
+  bool shouldRepaint(CalibrationGuidePainter oldDelegate) {
+    return oldDelegate.calibrationState != calibrationState;
+  }
 }

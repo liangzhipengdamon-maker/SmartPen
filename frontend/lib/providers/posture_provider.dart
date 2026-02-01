@@ -39,6 +39,7 @@ class PostureProvider extends ChangeNotifier {
 
   // 新增：校准状态访问器
   CalibrationState get calibrationState => _calibrationManager.currentState;
+  CalibrationState get stableCalibrationState => _calibrationManager.lastStableState;
   bool get isReadyForPractice => _calibrationManager.isReadyForPractice;
   String get calibrationMessage => _calibrationManager.currentState.message;
   Color get calibrationColor => _calibrationManager.currentState.color;
@@ -98,7 +99,10 @@ class PostureProvider extends ChangeNotifier {
 
         // 分析姿态
         if (poses.isNotEmpty) {
-          _currentAnalysis = detector.PostureDetector.analyzePose(poses.first);
+          _currentAnalysis = detector.PostureDetector.analyzePose(
+            poses.first,
+            imageSize: _currentImageSize ?? const ui.Size(640, 480),
+          );
 
           // 新增：更新校准状态管理器
           _calibrationManager.processAnalysis(_currentAnalysis!);

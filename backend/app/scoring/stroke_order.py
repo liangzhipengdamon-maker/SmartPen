@@ -5,7 +5,7 @@ Validates stroke order, direction, and count for character writing.
 """
 
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from enum import Enum
 from pydantic import BaseModel
 
@@ -28,6 +28,8 @@ class StrokeOrderResult(BaseModel):
     stroke_count_match: bool
     order_penalty: float = 0.0
     direction_match_rate: float = 0.0
+    error_type: Optional[str] = None
+    message: Optional[str] = None
 
 
 def detect_stroke_direction(
@@ -154,7 +156,9 @@ def validate_stroke_order(
             score=0.0,
             stroke_count_match=False,
             order_penalty=1.0,
-            direction_match_rate=0.0
+            direction_match_rate=0.0,
+            error_type="no_strokes",
+            message="No user strokes provided"
         )
 
     # Check stroke count
@@ -164,10 +168,12 @@ def validate_stroke_order(
         # Wrong stroke count is a major error
         return StrokeOrderResult(
             is_valid=False,
-            score=0.3,  # Low score for wrong count
+            score=0.0,
             stroke_count_match=False,
             order_penalty=0.5,
-            direction_match_rate=0.0
+            direction_match_rate=0.0,
+            error_type="stroke_count_mismatch",
+            message="Stroke count mismatch"
         )
 
     # Calculate similarity matrix

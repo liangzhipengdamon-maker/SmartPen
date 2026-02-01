@@ -161,3 +161,11 @@ class ComprehensiveScoreResult(BaseModel):
         ...,
         description="综合反馈文本"
     )
+    error_type: Optional[str] = Field(
+        None,
+        description="错误类型（可选）"
+    )
+    message: Optional[str] = Field(
+        None,
+        description="错误信息（可选）"
+    )

@@ -109,7 +109,8 @@ class TestValidateStrokeOrder:
         result = validate_stroke_order(template_strokes, user_strokes)
 
         assert result.stroke_count_match is False
-        assert result.score < 0.5
+        assert result.score == 0.0
+        assert result.error_type == "stroke_count_mismatch"
 
     def test_extra_stroke(self):
         """Extra stroke should lower score"""
@@ -126,7 +127,8 @@ class TestValidateStrokeOrder:
         result = validate_stroke_order(template_strokes, user_strokes)
 
         assert result.stroke_count_match is False
-        assert result.score < 0.8
+        assert result.score == 0.0
+        assert result.error_type == "stroke_count_mismatch"
 
     def test_reversed_stroke_order(self):
         """Reversed stroke order should have lower score"""
@@ -171,6 +173,7 @@ class TestValidateStrokeOrder:
 
         assert result.is_valid is False
         assert result.score == 0.0
+        assert result.error_type == "no_strokes"
 
     def test_realistic_character_strokes(self):
         """Test with realistic character stroke data"""
