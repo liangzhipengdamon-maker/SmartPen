@@ -30,3 +30,6 @@ Thumbs.db
 # Project specific
 *.log
 .env.local
+
+# Personal memos (移动到项目外部)
+memo/
