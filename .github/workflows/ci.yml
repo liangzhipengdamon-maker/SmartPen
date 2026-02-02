@@ -1,0 +1,206 @@
+# SmartPen CI/CD Pipeline
+# - PostgreSQL 服务容器 (测试环境)
+# - Backend: pytest, coverage 85%, ruff, black, mypy
+# - Frontend: flutter test, flutter analyze, Java 17
+# - HuggingFace 模型缓存
+# - Android APK 构建 (main 分支)
+
+name: SmartPen CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: '3.10'
+  FLUTTER_VERSION: '3.16.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  # ==================== Backend Tests ====================
+  backend-test:
+    name: Backend Tests & Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: smartpen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pytest-cov
+
+      - name: Run Ruff linter
+        run: |
+          cd backend
+          ruff check .
+
+      - name: Run Black formatter check
+        run: |
+          cd backend
+          black --check .
+
+      - name: Run MyPy type checker
+        run: |
+          cd backend
+          mypy app/
+
+      - name: Cache HuggingFace Models
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-hf-${{ hashFiles('backend/app/models/**') }}
+
+      - name: Run Tests with Coverage
+        run: |
+          cd backend
+          export DATABASE_URL=postgresql://user:password@localhost:5432/smartpen_test
+          pytest --cov=app --cov-report=xml --cov-fail-under=85 tests/
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  # ==================== Frontend Tests ====================
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install Dependencies
+        run: |
+          cd frontend
+          flutter pub get
+
+      - name: Run Flutter lints
+        run: |
+          cd frontend
+          flutter analyze
+
+      - name: Run Tests
+        run: |
+          cd frontend
+          flutter test --coverage
+
+      - name: Check Coverage Threshold
+        run: |
+          cd frontend
+          sudo apt-get install -y lcov
+          lcov --summary coverage/lcov.info | grep "lines......" | cut -d '|' -f 2 | cut -d '%' -f 1 | awk '{if ($1 < 85.0) {print "Coverage too low: "$1; exit 1}}'
+
+  # ==================== Integration Tests ====================
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-test]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: smartpen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Integration Tests
+        run: |
+          cd backend
+          pytest tests/test_api_integration.py -v
+        env:
+          DATABASE_URL: postgresql://user:password@localhost:5432/smartpen_test
+          REDIS_URL: redis://localhost:6379/0
+
+  # ==================== Build Android APK ====================
+  build-android:
+    name: Build Android APK
+    needs: [backend-test, frontend-test, integration-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Build APK
+        run: |
+          cd frontend
+          flutter pub get
+          flutter build apk --release

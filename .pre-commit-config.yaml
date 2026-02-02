@@ -1,0 +1,71 @@
+# Pre-commit hooks configuration for SmartPen Project
+# AI 辅助开发工作流 - 自动代码质量检查
+# Monorepo 结构适配
+
+# 查看所有可用钩子: https://pre-commit.com/hooks.html
+# 安装: pip install pre-commit && pre-commit install
+# 运行: pre-commit run --all-files
+
+repos:
+  ### ==================== Standard Hooks ====================
+  ### 基础文件格式和语法检查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+
+  ### ==================== Python Hooks ====================
+  ### Python 代码格式化和检查
+  - repo: local
+    hooks:
+      - id: black
+        name: black (Python formatter)
+        entry: black
+        language: system
+        types: [python]
+        require_serial: true
+
+      - id: ruff
+        name: ruff (Python linter)
+        entry: ruff check
+        language: system
+        types: [python]
+        args: [--fix, --exit-non-zero-on-fix]
+
+  ### ==================== Dart/Flutter Hooks ====================
+  ### Flutter 代码格式化和检查 (Monorepo 适配版)
+  - repo: local
+    hooks:
+      - id: flutter-format
+        name: dart format (Auto-fix)
+        # 移除 check-only 参数，允许自动格式化
+        entry: dart format
+        language: system
+        types: [dart]
+
+      - id: flutter-analyze
+        name: flutter analyze
+        # 关键修复：进入 frontend 目录运行，否则找不到 pubspec.yaml
+        entry: bash -c 'cd frontend && flutter analyze'
+        language: system
+        types: [dart]
+        pass_filenames: false
+
+  ### ==================== Codex AI Review ====================
+  ### Codex 快速代码审查 - SmartPen 项目核心
+  - repo: local
+    hooks:
+      - id: codex-quick-review
+        name: 🤖 Codex Quick Code Review
+        entry: .github/scripts/codex-precommit.sh
+        language: script
+        pass_filenames: false # 脚本内部自行处理 git diff
+        timeout: 60
+        stages: [pre-commit]

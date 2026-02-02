@@ -340,3 +340,88 @@ Follow .ralph/@fix_plan.md and choose the most important item to implement next.
 Use your judgment to prioritize what will have the biggest impact on project progress.
 
 Remember: Quality over speed. Build it right the first time. Know when you're done.
+
+---
+
+## Codex 集成 (NEW - AI 辅助开发工作流)
+
+SmartPen 项目已集成 Codex 本地代码审查模型，与 Ralph、Superpowers 和 Claude Code 协同工作。
+
+### 🤖 Codex 角色
+
+Codex 是**代码审查与精修器**，负责：
+- **Pre-commit 阶段**: 快速本地审查 (< 30 秒)
+- **PR 阶段**: 深度架构、安全、复杂度分析
+- **生成 PR 内容**: 自动创建审查报告
+
+### 📋 Pre-commit 阶段工作流
+
+**提交任何代码前，Ralph 必须：**
+
+1. **运行 git commit** (触发 pre-commit hook)
+   ```bash
+   git add .
+   git commit -m "feat: description"
+   # 自动触发 Codex 快速审查
+   ```
+
+2. **处理 Codex 反馈**
+   - **简单问题**: 运行 `codex fix` 自动修复
+   - **复杂问题**: 使用 Claude Code 修复后重新提交
+
+3. **只有 pre-commit 通过后才继续**
+
+### 🔍 PR 创建阶段工作流
+
+**创建 PR 前，Ralph 必须：**
+
+1. **确保所有测试通过**
+   ```bash
+   pytest          # Backend
+   flutter test    # Frontend
+   ```
+
+2. **验证覆盖率 >= 85%**
+
+3. **创建 PR** (使用模板)
+   ```bash
+   gh pr create --template .github/pull_request_template.md
+   ```
+
+4. **等待 GitHub Actions 完成**
+   - CI/CD Pipeline 运行
+   - Codex 深度审查自动发布 PR 评论
+
+5. **检查 Codex 深度审查评论**
+   - 查看自动发布的审查报告
+   - 在请求人工审查前解决所有 Codex 反馈
+
+### ✅ 任务完成标准 (更新)
+
+**任务 COMPLETE 只有当：**
+
+1. [ ] 所有测试通过
+2. [ ] 覆盖率 >= 85%
+3. [ ] Pre-commit Codex 审查通过
+4. [ ] PR 已创建 (使用模板)
+5. [ ] Codex 深度审查通过 (无严重问题)
+6. [ ] 所有 Codex 反馈已解决
+7. [ ] 人工审批已接收
+8. [ ] 已合并到 main
+9. [ ] `.ralph/@fix_plan.md` 已更新为 `[x]`
+
+### 🔧 Codex 配置文件
+
+- **配置**: `.codex/config.yaml`
+- **忽略规则**: `.codex/ignore_rules.yaml`
+- **Pre-commit 脚本**: `.github/scripts/codex-precommit.sh`
+- **PR 审查工作流**: `.github/workflows/codex-review.yml`
+
+### 🎯 SmartPen 特定约束
+
+Codex 审查时会检查以下项目特定约束：
+
+- ✅ TensorFlow 2.15-2.17 (InkSight 兼容性)
+- ✅ `google_ml_kit_pose_detection` (不使用原生 MediaPipe)
+- ✅ `dtw-python` 库 (不自定义实现 DTW)
+- ✅ Hanzi Writer CDN 加载 (不本地存储)

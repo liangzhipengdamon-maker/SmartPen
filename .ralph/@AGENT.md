@@ -8,7 +8,7 @@ npm install
 # Or for Python project
 pip install -r requirements.txt
 
-# Or for Rust project  
+# Or for Rust project
 cargo build
 ```
 
@@ -126,7 +126,46 @@ Before moving to the next feature, ALL changes must be:
    - Keep command examples accurate and tested
    - Document new testing patterns or quality gates
 
-### Feature Completion Checklist
+### 代码质量门槛 (NEW - Codex 集成)
+
+在标记任何功能为完成前，以下**必须通过**：
+
+#### 1. Pre-commit Codex 审查 (快速模式)
+
+- **触发方式**: 自动在 `git commit` 时运行
+- **检查内容**:
+  - 语法错误
+  - 代码风格 (black/dart format)
+  - 导入语句规范
+  - 基础安全问题
+- **最长时间**: 30 秒
+- **通过标准**: 无 error 或 warning
+- **安装**:
+  ```bash
+  pip install pre-commit
+  pre-commit install
+  ```
+
+#### 2. CI/CD 流水线
+
+- **触发时机**: 推送到远程或创建 PR 时自动运行
+- **检查内容**:
+  - Backend: `pytest` (所有测试通过)
+  - Frontend: `flutter test` (所有测试通过)
+  - 覆盖率: >= 85%
+  - Python: `ruff`, `black`, `mypy` 检查
+  - Flutter: `flutter analyze` 检查
+  - Codex 深度审查 (架构、安全、复杂度)
+
+#### 3. PR 审批要求
+
+- [ ] 所有 CI 检查通过
+- [ ] Codex 深度审查完成 (无严重问题)
+- [ ] 所有 Codex 反馈已解决
+- [ ] 人工审批通过
+- [ ] 覆盖率保持 >= 85%
+
+### Feature Completion Checklist (更新版)
 
 Before marking ANY feature as complete, verify:
 
@@ -135,15 +174,20 @@ Before marking ANY feature as complete, verify:
 - [ ] Coverage report reviewed for meaningful test quality
 - [ ] Code formatted according to project standards
 - [ ] Type checking passes (if applicable)
+- [ ] **Pre-commit Codex review passed** (NEW)
 - [ ] All changes committed with conventional commit messages
 - [ ] All commits pushed to remote repository
+- [ ] **PR created with template** (NEW)
+- [ ] **Codex deep review passed** (NEW)
+- [ ] **All Codex feedback addressed** (NEW)
 - [ ] .ralph/@fix_plan.md task marked as complete
 - [ ] Implementation documentation updated
 - [ ] Inline code comments updated or added
 - [ ] .ralph/@AGENT.md updated (if new patterns introduced)
 - [ ] Breaking changes documented
 - [ ] Features tested within Ralph loop (if applicable)
-- [ ] CI/CD pipeline passes
+- [ ] **CI/CD pipeline passes** (UPDATED with Codex review)
+- [ ] **Human approval received** (NEW)
 
 ### Rationale
 

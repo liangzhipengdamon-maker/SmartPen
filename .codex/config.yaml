@@ -1,0 +1,75 @@
+# Codex Configuration for SmartPen Project
+# 本地代码审查模型配置
+
+review:
+  # 快速模式 (Pre-commit)
+  quick:
+    timeout: 30
+    severity: ["error", "warning"]
+    include:
+      - syntax
+      - style
+      - imports
+      - basic_security
+    exclude:
+      - complexity
+      - architecture
+      - performance
+
+  # 深度模式 (PR 审查)
+  deep:
+    timeout: 300
+    severity: ["error", "warning", "info"]
+    include:
+      - syntax
+      - style
+      - security
+      - architecture
+      - complexity
+      - testing
+      - performance
+      - documentation
+
+# 语言特定设置
+languages:
+  python:
+    formatter: black
+    linter: ruff
+    type_checker: mypy
+    max_line_length: 100
+
+  dart:
+    formatter: dart format
+    linter: flutter analyze
+    max_line_length: 100
+
+# 项目特定配置
+project:
+  name: "SmartPen"
+  description: "AI Calligraphy Teaching System - 智笔 AI 硬笔书法教学系统"
+
+  # 关键技术约束 (来自 PRD v2.1)
+  constraints:
+    - "TensorFlow 2.15-2.17 (InkSight 模型)"
+    - "google_ml_kit_pose_detection (不使用原生 MediaPipe)"
+    - "dtw-python 库 (不自定义实现 DTW)"
+    - "Hanzi Writer CDN 加载 (不本地存储)"
+
+  # 技术栈
+  tech_stack:
+    frontend: "Flutter 3.16+"
+    backend: "FastAPI 0.104+"
+    database: "PostgreSQL 15+"
+    cache: "Redis 7+"
+
+  # 质量门槛
+  quality_gates:
+    coverage_threshold: 85
+    max_function_length: 50
+    max_cyclomatic_complexity: 10
+
+# 输出格式配置
+output:
+  format: markdown
+  include_code_snippets: true
+  show_line_numbers: true
