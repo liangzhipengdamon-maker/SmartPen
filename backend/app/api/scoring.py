@@ -27,6 +27,7 @@ from app.scoring.posture_scorer import score_posture
 from app.scoring.normalizer import normalize_score
 from app.scoring.stroke_order import validate_stroke_order
 from app.models.inksight import InkSightModel, InksightResult
+from app.scoring.validation import validate_extracted_strokes
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ _loader = HanziWriterLoader()
 # Scoring weights
 HANDWRITING_WEIGHT = 0.7  # 70% weight for handwriting quality
 POSTURE_WEIGHT = 0.3      # 30% weight for posture quality
+
 
 
 def _get_grade(score: float) -> str:
@@ -242,6 +244,8 @@ def _extract_user_strokes_from_photo(
         return None
 
 
+
+
 @router.post("/score/from_photo", response_model=ComprehensiveScoreResult)
 async def score_from_photo(
     character: str = Form(...),
@@ -264,6 +268,15 @@ async def score_from_photo(
                 "message": "未检测到可评分的书写轨迹",
             },
         )
+    filtered_strokes, validation_error = validate_extracted_strokes(user_strokes)
+    if validation_error:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error_type": "no_strokes_detected",
+                "message": validation_error,
+            },
+        )
 
     parsed_posture: Optional[PostureData] = None
     if posture_data:
@@ -274,7 +287,7 @@ async def score_from_photo(
 
     request = ComprehensiveScoreRequest(
         character=character,
-        user_strokes=user_strokes,
+        user_strokes=filtered_strokes,
         posture_data=parsed_posture,
     )
     return await comprehensive_score(request)

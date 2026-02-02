@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 from app.main import app
+from app.scoring.validation import validate_extracted_strokes
 
 
 def _blank_png_bytes() -> bytes:
@@ -29,3 +30,39 @@ def test_score_from_photo_no_strokes_detected():
     assert response.status_code == 422
     data = response.json()
     assert data["detail"]["error_type"] == "no_strokes_detected"
+
+
+def test_validate_extracted_strokes_empty():
+    filtered, error = validate_extracted_strokes([])
+    assert filtered == []
+    assert error is not None
+
+
+def test_validate_extracted_strokes_single_point():
+    filtered, error = validate_extracted_strokes([[(0.5, 0.5)]])
+    assert filtered == []
+    assert error is not None
+
+
+def test_validate_extracted_strokes_valid():
+    strokes = [
+        [
+            (0.1, 0.1),
+            (0.2, 0.15),
+            (0.3, 0.2),
+            (0.4, 0.25),
+            (0.5, 0.3),
+            (0.6, 0.35),
+        ],
+        [
+            (0.2, 0.7),
+            (0.3, 0.72),
+            (0.4, 0.74),
+            (0.5, 0.76),
+            (0.6, 0.78),
+            (0.7, 0.8),
+        ],
+    ]
+    filtered, error = validate_extracted_strokes(strokes)
+    assert filtered == strokes
+    assert error is None

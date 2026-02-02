@@ -16,6 +16,7 @@ from app.scoring.stroke_order import (
     detect_stroke_direction,
     StrokeDirection,
 )
+from app.scoring.validation import validate_extracted_strokes
 
 __all__ = [
     "normalize_score",
@@ -25,4 +26,5 @@ __all__ = [
     "StrokeOrderResult",
     "detect_stroke_direction",
     "StrokeDirection",
+    "validate_extracted_strokes",
 ]
