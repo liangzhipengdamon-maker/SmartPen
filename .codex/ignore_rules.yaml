@@ -1,6 +1,12 @@
 # Codex Ignore Rules for SmartPen Project
 # 定义在特定上下文中忽略的规则
 
+# ⚠️ CRITICAL: 虚拟环境管理警告
+# 如果在以下位置发现 venv，应立即报告为错误：
+# - 根目录的 venv/ (与工具环境冲突)
+# - frontend/ 下的 venv/ (不需要 Python 环境)
+# - 只有 backend/venv 是合法的 Python 虚拟环境
+
 ignore:
   # 测试文件允许更长函数和更高复杂度
   - pattern: "tests/.*\\.py$"
@@ -34,6 +40,21 @@ ignore:
       - all
 
   - pattern: "backend/venv/.*"
+    rules:
+      - all
+
+  # ⚠️ 以下位置的 venv 应被视为错误而非忽略
+  # Codex 应在审查时报告这些违规：
+  - pattern: "venv/.*"
+    severity: "error"
+    message: "根目录不应有 venv，请使用 backend/venv"
+
+  - pattern: "frontend/.*/venv/.*"
+    severity: "error"
+    message: "frontend 不需要 Python venv"
+
+  # 工具环境（不应审查）
+  - pattern: "~/.claude/skills/.*/venv/.*"
     rules:
       - all
 

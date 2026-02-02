@@ -12,9 +12,9 @@ pydantic-settings>=2.1.0
 httpx>=0.25.0
 
 # AI/ML - CRITICAL VERSION CONSTRAINTS
-# ⚠️ TensorFlow: Strictly 2.15.0-2.17.0 for InkSight
-# Higher versions cause unexpected behavior with InkSight models
-tensorflow>=2.15.0,<2.18.0
+# ⚠️ TensorFlow: Strictly 2.15.0 for InkSight compatibility
+# TF 2.15 includes Keras 2.15 natively, avoiding Keras 3 conflicts
+tensorflow==2.15.0
 transformers>=4.30.0
 torch>=2.0.0
 
@@ -36,3 +36,8 @@ dtw-python>=1.0.0
 # Utilities
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
