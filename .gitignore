@@ -33,3 +33,27 @@ Thumbs.db
 
 # Personal memos (移动到项目外部)
 memo/
+
+# Flutter build artifacts
+frontend/build/
+**/.dart_tool/
+**/.flutter-plugins*
+**/.flutter-plugins-dependencies
+*.apk
+*.aab
+
+# Android Gradle (keep wrapper, ignore cache)
+frontend/android/.gradle/
+frontend/android/**/build/
+frontend/android/local.properties
+
+# Python Coverage
+htmlcov/
+*.lcov
+coverage.xml
+.pytest_cache/
+backend/.coverage
+
+# Ralph config copies
+**/*.copy.md
+**/*副本*.md
