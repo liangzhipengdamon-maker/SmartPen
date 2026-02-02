@@ -1,0 +1,49 @@
+# Codex Ignore Rules for SmartPen Project
+# 定义在特定上下文中忽略的规则
+
+ignore:
+  # 测试文件允许更长函数和更高复杂度
+  - pattern: "tests/.*\\.py$"
+    rules:
+      - function-length
+      - cyclomatic-complexity
+
+  - pattern: "frontend/test/.*\\.dart$"
+    rules:
+      - function-length
+      - cyclomatic-complexity
+
+  # Flutter 生成的代码 (JSON 序列化)
+  - pattern: ".*\\.g\\.dart$"
+    rules:
+      - all
+
+  - pattern: ".*\\.freezed\\.dart$"
+    rules:
+      - all
+
+  # 遗留代码 (临时豁免)
+  # - pattern: "legacy/.*"
+  #   rules:
+  #     - documentation
+  #     - naming-convention
+
+  # 第三方依赖 (不审查)
+  - pattern: "frontend/.dart_tool/.*"
+    rules:
+      - all
+
+  - pattern: "backend/venv/.*"
+    rules:
+      - all
+
+  - pattern: "__pycache__/.*"
+    rules:
+      - all
+
+# 文件级别忽略
+files:
+  # 特定文件不审查
+  - "frontend/pubspec.lock"
+  - "backend/.python-version"
+  - ".gitignore"
