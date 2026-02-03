@@ -476,6 +476,7 @@ class MyPage extends StatelessWidget {
 - **Python**: 遵循 PEP 8
 - **Dart**: 遵循 [Effective Dart](https://dart.dev/guides/language/effective-dart)
 - **提交信息**: 使用约定式提交
+- **AI 协作**: 写代码前先简短解释改动含义，再给出可选项/确认点
 
 ```
 feat: 添加新功能
