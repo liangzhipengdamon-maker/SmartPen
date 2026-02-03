@@ -1,9 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/character_provider.dart';
-import 'score_page.dart';
+import 'photo_preview_page.dart';
 
 /// 拍照页面 - 使用 image_picker 打开系统相机
 class PhotoCapturePage extends StatefulWidget {
@@ -35,11 +34,11 @@ class _PhotoCapturePageState extends State<PhotoCapturePage> {
         final characterProvider = context.read<CharacterProvider>();
         final currentCharacter = characterProvider.currentCharacter;
 
-        if (currentCharacter != null && mounted) {
+        if (mounted) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => ScorePage(
+              builder: (context) => PhotoPreviewPage(
                 photo: photo,
                 character: currentCharacter,
               ),
