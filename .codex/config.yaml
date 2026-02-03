@@ -48,12 +48,46 @@ project:
   name: "SmartPen"
   description: "AI Calligraphy Teaching System - 智笔 AI 硬笔书法教学系统"
 
-  # 关键技术约束 (来自 PRD v2.1)
+  # 关键技术约束 (来自 PRD v2.2)
   constraints:
-    - "TensorFlow 2.15-2.17 (InkSight 模型)"
+    - "TensorFlow 2.15.0 (InkSight 模型，使用 tf.keras)"
     - "google_ml_kit_pose_detection (不使用原生 MediaPipe)"
     - "dtw-python 库 (不自定义实现 DTW)"
     - "Hanzi Writer CDN 加载 (不本地存储)"
+
+  # 虚拟环境管理规范 (Monorepo 原则)
+  # ⚠️ CRITICAL: 违反这些规则会导致依赖冲突和 InkSight 模型加载失败
+  environment_management:
+    python:
+      # 后端环境
+      backend:
+        location: "backend/venv"
+        purpose: "唯一的 Python 虚拟环境"
+        contains:
+          - "FastAPI + Web 框架"
+          - "TensorFlow 2.15.0 + tf.keras (Keras 2.15)"
+          - "PaddleOCR (OCR 功能)"
+          - "DTW 算法 (评分功能)"
+          - "pytest (测试)"
+        critical_rules:
+          - "🚫 严禁在项目根目录创建 venv/"
+          - "🚫 严禁在 frontend/ 目录创建 venv/"
+          - "🚫 严禁安装独立的 keras 包 (使用 tf.keras)"
+          - "⚠️ TensorFlow 必须锁定为 2.15.0 (Keras 3 不兼容)"
+          - "⚠️ NumPy 必须 < 2.0.0"
+
+      # 前端环境
+      frontend:
+        python_venv: false
+        reason: "Flutter 依赖由 pubspec.yaml 管理，不需要 Python venv"
+
+      # 工具环境隔离
+      tools:
+        notebooklm_skill:
+          location: "~/.claude/skills/notebooklm/.venv"
+          purpose: "NotebookLM Skill 专用环境"
+          isolation: "完全独立，不影响项目环境"
+        warning: "根目录 venv 会与工具环境混淆，必须删除"
 
   # 技术栈
   tech_stack:
