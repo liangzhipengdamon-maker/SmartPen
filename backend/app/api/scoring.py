@@ -26,7 +26,6 @@ from app.algorithms.dtw import calculate_dtw_distance
 from app.scoring.posture_scorer import score_posture
 from app.scoring.normalizer import normalize_score
 from app.scoring.stroke_order import validate_stroke_order
-from app.models.inksight import InkSightModel, InksightResult
 
 logger = logging.getLogger(__name__)
 
@@ -197,49 +196,17 @@ def _extract_user_strokes_from_photo(
     character: str
 ) -> Optional[List[List[tuple[float, float]]]]:
     """
-    Extract user strokes from photo using InkSight (placeholder if unavailable).
+    Extract user strokes from photo using OpenCV (implementation pending).
+
     Returns list of strokes in 0-1 normalized coordinates, or None on failure.
+
+    Note: This function is temporarily disabled during OpenCV migration.
     """
-    try:
-        from PIL import Image
-    except Exception as e:
-        logger.warning(f"PIL not available for image decode: {e}")
-        return None
-
-    try:
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        image_np = np.array(img)
-    except Exception as e:
-        logger.warning(f"Failed to decode image: {e}")
-        return None
-
-    try:
-        inksight = InkSightModel.get_instance()
-        inksight.load()
-        if inksight.model is not None and inksight.model.__class__.__name__ == "MockModel":
-            logger.warning("InkSight mock model detected; returning no_strokes")
-            return None
-        result = inksight.predict(image_np)
-        if isinstance(result, InksightResult):
-            strokes = result.strokes
-        else:
-            strokes = getattr(result, "strokes", None)
-
-        if not strokes:
-            return None
-
-        # Ensure list of list of (x, y) floats
-        normalized_strokes: List[List[tuple[float, float]]] = []
-        for stroke in strokes:
-            if not stroke:
-                continue
-            points = [(float(x), float(y)) for x, y in stroke]
-            normalized_strokes.append(points)
-
-        return normalized_strokes if normalized_strokes else None
-    except Exception as e:
-        logger.warning(f"InkSight extraction failed: {e}")
-        return None
+    logger.info("Photo scoring temporarily disabled - OpenCV implementation pending")
+    raise HTTPException(
+        status_code=503,
+        detail="评分引擎升级中，OpenCV 骨架提取功能即将上线"
+    )
 
 
 @router.post("/score/from_photo", response_model=ComprehensiveScoreResult)

@@ -12,6 +12,7 @@ PRD v2.1 Constraints:
 
 import logging
 import numpy as np
+import io
 from pathlib import Path
 from typing import List, Tuple, Optional, Union
 from pydantic import BaseModel
@@ -30,6 +31,13 @@ try:
 except ImportError:
     tf = None
     logging.error("TensorFlow not installed. Install: pip install 'tensorflow>=2.15.0,<2.18.0'")
+
+# Import tensorflow-text to register SentencepieceOp (required by InkSight)
+try:
+    import tensorflow_text
+    logging.info("tensorflow-text loaded successfully")
+except ImportError:
+    logging.warning("tensorflow-text not installed. Install: pip install 'tensorflow-text==2.15.*'")
 
 from app.models.model_loader import (
     get_inksight_model_path,
@@ -101,26 +109,29 @@ class InkSightModel:
             return
 
         try:
-            # Try to load from HuggingFace hub
-            # Note: InkSight may not be in standard transformers yet
-            # This is a placeholder for when it becomes available
-            from transformers import AutoModel
+            # Try to load from HuggingFace hub using TensorFlow SavedModel format
+            from huggingface_hub import snapshot_download
 
             model_id = get_huggingface_model_id()
             logger.info(f"Attempting to load InkSight model: {model_id}")
 
-            # Try loading (will fail if model not public yet)
+            # Download model from HuggingFace (uses cache if already downloaded)
             try:
-                self.model = AutoModel.from_pretrained(model_id, from_tf=True)
+                model_path = snapshot_download(repo_id=model_id, repo_type="model")
+                logger.info(f"Model downloaded/cached at: {model_path}")
+
+                # Load TensorFlow SavedModel
+                self.model = tf.saved_model.load(model_path)
                 self._is_loaded = True
                 logger.info("InkSight model loaded successfully")
+
             except Exception as e:
                 logger.warning(f"InkSight model not available on HuggingFace: {e}")
                 logger.info("Falling back to mock model for development")
                 self._create_mock_model()
 
         except ImportError as e:
-            logger.warning(f"Transformers not available: {e}")
+            logger.warning(f"huggingface_hub not available: {e}")
             logger.info("Using mock model for development")
             self._create_mock_model()
         except Exception as e:
@@ -183,25 +194,56 @@ class InkSightModel:
         if isinstance(image, (str, Path)):
             image = self._load_image_from_path(image)
 
-        # Preprocess image
-        processed = preprocess_image(image)
-
         # Run prediction
         try:
-            result = self.model.predict(processed)
+            # Check if it's a SavedModel (has signatures)
+            if hasattr(self.model, 'signatures'):
+                # Call SavedModel through signature
+                infer = self.model.signatures["serving_default"]
 
-            # Handle mock model return
-            if isinstance(result, InksightResult):
-                return result
+                # Prepare inputs according to model signature
+                # 1. Encode image as JPEG
+                from PIL import Image
+                if image.dtype != np.uint8:
+                    image = (image * 255).astype(np.uint8)
+                pil_img = Image.fromarray(image[:, :, :3])  # Remove alpha if present
+                img_byte_arr = io.BytesIO()
+                pil_img.save(img_byte_arr, format='JPEG')
+                img_byte_arr = img_byte_arr.getvalue()
+                image_encoded = tf.reshape(tf.io.encode_jpeg(np.array(image)[:, :, :3]), (1, 1))
 
-            # Handle real model return (tensor/array)
-            trajectory = self._extract_trajectory(result)
+                # 2. Prepare text prompt
+                prompt = "Derender the ink."
+                input_text = tf.constant([prompt], dtype=tf.string)
 
-            return InksightResult(
-                trajectory=trajectory,
-                strokes=self._split_into_strokes(trajectory),
-                confidence=0.85
-            )
+                # Call model
+                outputs = infer(**{'input_text': input_text, 'image/encoded': image_encoded})
+
+                # The model outputs discrete tokens, not direct trajectories
+                # We need to decode them - for now return mock result
+                logger.warning(f"SavedModel outputs: {list(outputs.keys())}")
+                logger.warning(f"Model output type: {type(outputs)}")
+                for key, value in outputs.items():
+                    logger.warning(f"  {key}: shape={value.shape}, dtype={value.dtype}")
+
+                # For now, use mock model since real model output parsing is complex
+                return self._get_mock_trajectory(image.shape[:2])
+
+            else:
+                # Handle mock model return
+                processed = preprocess_image(image)
+                result = self.model.predict(processed)
+                if isinstance(result, InksightResult):
+                    return result
+
+                # Handle real model return (tensor/array)
+                trajectory = self._extract_trajectory(result)
+
+                return InksightResult(
+                    trajectory=trajectory,
+                    strokes=self._split_into_strokes(trajectory),
+                    confidence=0.85
+                )
 
         except Exception as e:
             logger.error(f"Prediction failed: {e}")
@@ -211,6 +253,22 @@ class InkSightModel:
                 strokes=[[(0.5, 0.5)]],
                 confidence=0.0
             )
+
+    def _get_mock_trajectory(self, image_shape) -> InksightResult:
+        """Generate a simple mock trajectory based on image dimensions."""
+        height, width = image_shape
+        num_points = 20
+        trajectory = []
+        for i in range(num_points):
+            x = 0.2 + 0.6 * (i / num_points)  # 20% to 80% width
+            y = 0.5  # Middle height
+            trajectory.append((x, y))
+
+        return InksightResult(
+            trajectory=trajectory,
+            strokes=[trajectory],
+            confidence=0.5
+        )
 
     def _load_image_from_path(self, path: Union[str, Path]) -> np.ndarray:
         """Load image from file path"""
